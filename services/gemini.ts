@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { AttendanceRecord, Student } from "../types";
+import { AttendanceRecord, Student } from "../types.ts";
 
 // In a real app, never expose keys in client code. This is for demo context.
 const apiKey = process.env.API_KEY || ''; 
