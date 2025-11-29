@@ -88,23 +88,36 @@
         
         const handleSave = () => {
           try {
-            // Limpa espaços extras
-            let cleanConfig = fbConfig.trim();
-            // Tenta ajudar se o usuário colou com "const firebaseConfig ="
-            if (cleanConfig.includes("const firebaseConfig")) {
-               const start = cleanConfig.indexOf('{');
-               const end = cleanConfig.lastIndexOf('}');
+            let configStr = fbConfig.trim();
+            let parsed = null;
+
+            // 1. Tenta extrair o objeto de dentro do `const firebaseConfig = { ... }`
+            // Regex procura por algo entre chaves, ignorando o começo "const..."
+            const match = configStr.match(/firebaseConfig\s*=\s*({[\s\S]*?});?/);
+            if (match) {
+               configStr = match[1];
+            } else {
+               // Se o usuário colou só o miolo, tenta achar o primeiro { e o último }
+               const start = configStr.indexOf('{');
+               const end = configStr.lastIndexOf('}');
                if (start !== -1 && end !== -1) {
-                  cleanConfig = cleanConfig.substring(start, end + 1);
+                  configStr = configStr.substring(start, end + 1);
                }
             }
-            // Remove ponto e virgula final se houver
-            if (cleanConfig.endsWith(';')) cleanConfig = cleanConfig.slice(0, -1);
+
+            // 2. Tenta fazer o parse. O código do Firebase NÃO é JSON válido (chaves sem aspas).
+            // JSON.parse falha aqui. Usamos new Function para interpretar como objeto JS.
+            try {
+               // Tenta JSON puro primeiro (caso o usuário tenha formatado)
+               parsed = JSON.parse(configStr);
+            } catch (e) {
+               // Se falhar, tenta interpretar como objeto JS
+               // Isso é seguro aqui pois é rodado no cliente do próprio usuário
+               parsed = new Function('return ' + configStr)();
+            }
             
-            const parsed = JSON.parse(cleanConfig);
-            
-            if (!parsed.apiKey || !parsed.projectId) {
-               throw new Error("O JSON parece incompleto. Deve conter 'apiKey' e 'projectId'.");
+            if (!parsed || !parsed.apiKey || !parsed.projectId) {
+               throw new Error("Não foi possível encontrar 'apiKey' ou 'projectId'. Verifique se copiou todo o bloco 'const firebaseConfig'.");
             }
 
             localStorage.setItem(CONFIG_KEY, JSON.stringify({
@@ -113,7 +126,8 @@
             }));
             window.location.reload(); 
           } catch (e) {
-            setError("Erro no JSON: Certifique-se de copiar apenas o objeto entre { }. " + e.message);
+            console.error(e);
+            setError("Erro ao ler o código: " + e.message);
           }
         };
 
@@ -135,7 +149,7 @@
                      <ol className="text-xs text-gray-600 space-y-2 list-decimal pl-4 mb-4 bg-gray-50 p-3 rounded-lg border">
                         <li>Vá em <strong>Configurações do Projeto</strong>.</li>
                         <li>Role até <strong>Seus aplicativos</strong>.</li>
-                        <li>Copie o trecho dentro de <code>const firebaseConfig = &#123;...&#125;;</code></li>
+                        <li>Copie TODO o código do bloco preto.</li>
                      </ol>
                      <a href="https://console.firebase.google.com/" target="_blank" className="text-xs flex items-center gap-1 text-blue-600 hover:underline font-bold">
                         Abrir Console Firebase <ExternalLink size={10}/>
@@ -144,14 +158,15 @@
 
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
-                      <Database size={14}/> Cole o JSON aqui
+                      <Database size={14}/> Cole o Código Aqui
                     </label>
                     <textarea 
                       value={fbConfig}
                       onChange={e => {setFbConfig(e.target.value); setError('');}}
-                      placeholder='{ "apiKey": "AIza...", "authDomain": "..." }'
-                      className="w-full h-32 p-3 border rounded-lg text-xs font-mono bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                      placeholder='const firebaseConfig = { ... }'
+                      className="w-full h-32 p-3 border rounded-lg text-xs font-mono bg-gray-900 text-green-400 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     ></textarea>
+                    <p className="text-[10px] text-gray-400 mt-1">Pode colar o código inteiro, inclusive os imports.</p>
                   </div>
 
                   {error && <p className="text-red-500 text-xs font-bold bg-red-50 p-2 rounded">{error}</p>}
@@ -383,19 +398,20 @@
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50 text-gray-600 text-sm">
-                                    <tr><th className="p-4">Nome</th><th className="p-4">Pastoral</th><th className="p-4 text-right">Ações</th></tr>
+                                    <tr><th className="p-4">Nome</th><th className="p-4">Pastoral</th><th className="p-4">QR Code</th><th className="p-4 text-right">Ações</th></tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {filtered.map(s => (
                                         <tr key={s.id} className="hover:bg-gray-50">
                                             <td className="p-4 font-medium">{s.name}</td>
                                             <td className="p-4 text-sm text-gray-500"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-semibold">{s.pastoral}</span></td>
+                                            <td className="p-4 text-xs font-mono text-gray-400">{s.qrCodeValue}</td>
                                             <td className="p-4 text-right">
                                                 <button onClick={() => handleDeleteStudent(s.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded"><Trash2 size={18}/></button>
                                             </td>
                                         </tr>
                                     ))}
-                                    {filtered.length === 0 && <tr><td colSpan="3" className="p-6 text-center text-gray-400">Nenhum aluno encontrado.</td></tr>}
+                                    {filtered.length === 0 && <tr><td colSpan="4" className="p-6 text-center text-gray-400">Nenhum aluno encontrado.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
