@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Search, QrCode } from 'lucide-react';
-import { Student, PastoralType } from '../types';
-import { addStudent, deleteStudent } from '../services/storage';
+import { Student, PastoralType } from '../types.ts';
+import { addStudent, deleteStudent } from '../services/storage.ts';
 
 interface StudentsPageProps {
   students: Student[];
