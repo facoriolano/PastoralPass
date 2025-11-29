@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Scan, X, CheckCircle, AlertTriangle } from 'lucide-react';
-import { findStudentByQR, markAttendance } from '../services/storage';
+import { findStudentByQR, markAttendance } from '../services/storage.ts';
 
 interface ScannerProps {
   onClose: () => void;
