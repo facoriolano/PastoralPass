@@ -1,58 +1,55 @@
 <div align="center">
 
-<!-- TÍTULO ANIMADO -->
 <a href="https://github.com/facoriolano">
 <img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=65&duration=4000&pause=1000&color=C084FC&background=00000000&center=true&vCenter=true&width=1200&height=150&lines=%40FACORIOLANO&v=1" alt="Typing SVG" />
 </a>
 
-<!-- Badges -->
 [![Database](https://img.shields.io/badge/Database-Firestore-7C3AED?style=for-the-badge&logo=firebase&logoColor=white)](https://firebase.google.com/)
 [![Style](https://img.shields.io/badge/Style-Tailwind-4338ca?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Status](https://img.shields.io/badge/Status-Online-3b82f6?style=for-the-badge&logo=pwa&logoColor=white)](https://github.com/facoriolano)
-[![Instagram](https://img.shields.io/badge/Instagram-%40facoriolano-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://instagram.com/facoriolano)
 
 </div>
 
 <br>
 
-### 📖 Sobre o Projeto
+### ☁️ PastoralPass Cloud
 
-O **PastoralPass** é uma aplicação web moderna desenvolvida para a gestão eficiente de presença em Igrejas e Pastorais. Focado em agilidade e dados, o projeto elimina as chamadas em papel e oferece insights valiosos através de Inteligência Artificial.
-
-O objetivo é automatizar a gestão paroquial através de:
-1.  **Leitura de QR Code:** Registro instantâneo de presença escaneando crachás ou via busca rápida.
-2.  **Painel Visual (Dashboard):** Gráficos em tempo real de comparecimento, faltas e engajamento semanal.
-3.  **Inteligência Artificial:** Integração com Gemini AI para analisar tendências e sugerir melhorias pastorais.
-4.  **Relatórios Detalhados:** Comparativo automático de presença vs. faltas com exportação para Excel/CSV.
+Versão **Serverless** conectada diretamente ao **Google Firebase**. 
+Isso significa que você tem sincronização em tempo real entre todos os celulares dos catequistas, sem precisar configurar servidores complexos.
 
 ---
 
-### 🛠️ Tecnologias
+### 🚀 Configuração Inicial (Obrigatório)
 
-*   **Frontend**: React 18, Lucide Icons, Recharts.
-*   **Estilização**: Tailwind CSS.
-*   **IA**: Google GenAI SDK (Gemini 2.5 Flash).
-*   **Dados**: Arquitetura Local-First (simulando Firestore via LocalStorage).
+Ao abrir o App pela primeira vez, ele pedirá a **Configuração JSON** do Firebase. 
 
-### 🚀 Como rodar localmente
+1. Acesse [console.firebase.google.com](https://console.firebase.google.com).
+2. Crie um projeto novo.
+3. No menu lateral, vá em **Criação > Firestore Database** e crie um banco (pode começar em modo de teste).
+4. Volte à **Visão Geral do Projeto** (ícone de engrenagem > Configurações do projeto).
+5. Role até o fim e clique no ícone `</>` (Web) para criar um app web.
+6. Copie o objeto `const firebaseConfig = { ... }` (apenas o conteúdo entre as chaves `{ ... }`).
+7. Cole no PastoralPass quando solicitado.
 
-1.  Clone este repositório.
-2.  Abra o arquivo `index.html` em um navegador moderno.
-3.  O app funcionará imediatamente (os dados ficam salvos no seu navegador).
+---
 
-### 📦 Comandos para GitHub
+### 📦 Instalação
 
-Se você deseja subir este projeto para o seu GitHub:
+Como este projeto usa a arquitetura "Single File", você só precisa do arquivo `index.html`.
+
+1. Clone o repositório.
+2. Suba para o GitHub.
+3. Ative o GitHub Pages.
+4. Pronto!
 
 ```bash
 git init
 git add .
-git commit -m "PastoralPass v1"
+git commit -m "Versão Cloud Firebase"
 git branch -M main
-git remote add origin https://github.com/facoriolano/pastoral-pass.git
+git remote add origin https://github.com/SEU_USER/REPO.git
 git push -u origin main
 ```
 
-<div align="center">
-  <sub>Desenvolvido com 💜 por @facoriolano</sub>
-</div>
+---
+<sub>Desenvolvido com 💜 por @facoriolano</sub>
