@@ -1,4 +1,4 @@
-import { Student, AttendanceRecord, PastoralType } from '../types';
+import { Student, AttendanceRecord, PastoralType } from '../types.ts';
 
 // Keys for LocalStorage
 const STUDENTS_KEY = 'pastoral_students';
