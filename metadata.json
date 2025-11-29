@@ -1,0 +1,7 @@
+{
+  "name": "PastoralPass",
+  "description": "Sistema de gestão de presença para igrejas e pastorais com QR Code e Relatórios Inteligentes.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
