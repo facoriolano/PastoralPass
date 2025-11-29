@@ -15,41 +15,33 @@
 ### ☁️ PastoralPass Cloud
 
 Versão **Serverless** conectada diretamente ao **Google Firebase**. 
-Isso significa que você tem sincronização em tempo real entre todos os celulares dos catequistas, sem precisar configurar servidores complexos.
+Todo o aplicativo funciona através do arquivo `index.html`, o que garante compatibilidade total com o GitHub Pages e fácil instalação.
 
 ---
 
-### 🚀 Configuração Inicial (Obrigatório)
+### 🚀 Configuração (Primeiro Acesso)
 
-Ao abrir o App pela primeira vez, ele pedirá a **Configuração JSON** do Firebase. 
+Ao abrir o aplicativo pela primeira vez, ele pedirá o código do Firebase.
 
-1. Acesse [console.firebase.google.com](https://console.firebase.google.com).
-2. Crie um projeto novo.
-3. No menu lateral, vá em **Criação > Firestore Database** e crie um banco (pode começar em modo de teste).
-4. Volte à **Visão Geral do Projeto** (ícone de engrenagem > Configurações do projeto).
-5. Role até o fim e clique no ícone `</>` (Web) para criar um app web.
-6. Copie o objeto `const firebaseConfig = { ... }` (apenas o conteúdo entre as chaves `{ ... }`).
-7. Cole no PastoralPass quando solicitado.
+1. Acesse o [Console Firebase](https://console.firebase.google.com/).
+2. Vá em **Configurações do Projeto** (Engrenagem).
+3. Role até **Seus aplicativos** > **PastoralPass**.
+4. Copie o código que aparece dentro de:
+   ```javascript
+   const firebaseConfig = {
+      // COPIE O QUE ESTIVER AQUI DENTRO
+   };
+   ```
+5. Cole no app e clique em salvar.
+
+> **Importante:** Certifique-se de ter criado o **Firestore Database** no modo de teste, caso contrário o app não terá permissão para salvar os dados.
 
 ---
 
-### 📦 Instalação
+### 📦 Estrutura do Projeto
 
-Como este projeto usa a arquitetura "Single File", você só precisa do arquivo `index.html`.
-
-1. Clone o repositório.
-2. Suba para o GitHub.
-3. Ative o GitHub Pages.
-4. Pronto!
-
-```bash
-git init
-git add .
-git commit -m "Versão Cloud Firebase"
-git branch -M main
-git remote add origin https://github.com/SEU_USER/REPO.git
-git push -u origin main
-```
+Para simplificar o deploy, este projeto usa a arquitetura **Single File Component**.
+O único arquivo necessário para o site funcionar é o `index.html`. Os arquivos `.tsx` antigos foram removidos para evitar conflitos.
 
 ---
 <sub>Desenvolvido com 💜 por @facoriolano</sub>
