@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
-import Dashboard from './pages/Dashboard';
-import StudentsPage from './pages/Students';
-import Reports from './pages/Reports';
-import Scanner from './components/Scanner';
-import HelpPage from './pages/Help';
-import { getStudents, getAttendance } from './services/storage';
-import { generateAttendanceInsights } from './services/gemini';
+import Sidebar from './components/Sidebar.tsx';
+import Dashboard from './pages/Dashboard.tsx';
+import StudentsPage from './pages/Students.tsx';
+import Reports from './pages/Reports.tsx';
+import Scanner from './components/Scanner.tsx';
+import HelpPage from './pages/Help.tsx';
+import { getStudents, getAttendance } from './services/storage.ts';
+import { generateAttendanceInsights } from './services/gemini.ts';
 import { Sparkles, ScanLine } from 'lucide-react';
-import { Student, AttendanceRecord } from './types';
+import { Student, AttendanceRecord } from './types.ts';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
