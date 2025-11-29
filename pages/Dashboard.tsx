@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Users, UserCheck, UserX, Calendar } from 'lucide-react';
-import { Student, AttendanceRecord } from '../types';
+import { Student, AttendanceRecord } from '../types.ts';
 
 interface DashboardProps {
   students: Student[];
