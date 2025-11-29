@@ -61,7 +61,7 @@
         Home, Users, ClipboardList, PieChart, Github, Scan, X, 
         CheckCircle, AlertTriangle, Plus, Trash2, Search, QrCode,
         UserCheck, UserX, Calendar, Sparkles, ScanLine, Download, 
-        Check, X as XIcon, Settings, Database, Key
+        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink
       } from 'lucide-react';
       import { 
         BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid 
@@ -84,63 +84,100 @@
       const SetupScreen = ({ onSave }) => {
         const [apiKey, setApiKey] = useState('');
         const [fbConfig, setFbConfig] = useState('');
+        const [error, setError] = useState('');
         
         const handleSave = () => {
           try {
-            // Tenta validar o JSON
-            const parsed = JSON.parse(fbConfig);
+            // Limpa espaços extras
+            let cleanConfig = fbConfig.trim();
+            // Tenta ajudar se o usuário colou com "const firebaseConfig ="
+            if (cleanConfig.includes("const firebaseConfig")) {
+               const start = cleanConfig.indexOf('{');
+               const end = cleanConfig.lastIndexOf('}');
+               if (start !== -1 && end !== -1) {
+                  cleanConfig = cleanConfig.substring(start, end + 1);
+               }
+            }
+            // Remove ponto e virgula final se houver
+            if (cleanConfig.endsWith(';')) cleanConfig = cleanConfig.slice(0, -1);
+            
+            const parsed = JSON.parse(cleanConfig);
+            
+            if (!parsed.apiKey || !parsed.projectId) {
+               throw new Error("O JSON parece incompleto. Deve conter 'apiKey' e 'projectId'.");
+            }
+
             localStorage.setItem(CONFIG_KEY, JSON.stringify({
               geminiKey: apiKey,
               firebase: parsed
             }));
-            window.location.reload(); // Recarrega para aplicar
+            window.location.reload(); 
           } catch (e) {
-            alert("O JSON do Firebase parece inválido. Verifique se copiou apenas o objeto entre { }.");
+            setError("Erro no JSON: Certifique-se de copiar apenas o objeto entre { }. " + e.message);
           }
         };
 
         return (
           <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-slate-900">
-            <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl animate-in">
+            <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl animate-in">
               <div className="flex items-center gap-3 mb-6 border-b pb-4">
                 <div className="p-3 bg-blue-100 rounded-lg text-blue-700"><Database size={24}/></div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-800">Configuração Inicial</h1>
-                  <p className="text-gray-500 text-sm">Conecte seu Banco de Dados</p>
+                  <h1 className="text-2xl font-bold text-gray-800">Conectar Banco de Dados</h1>
+                  <p className="text-gray-500 text-sm">Configuração Inicial do Firebase</p>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                    <Database size={14}/> Configuração Firebase (JSON)
-                  </label>
-                  <textarea 
-                    value={fbConfig}
-                    onChange={e => setFbConfig(e.target.value)}
-                    placeholder='Cole aqui o objeto: { "apiKey": "...", "authDomain": "..." }'
-                    className="w-full h-32 p-3 border rounded-lg text-xs font-mono bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                  ></textarea>
-                  <p className="text-xs text-gray-400 mt-1">Console Firebase > Configurações do Projeto > Geral > Apps da Web</p>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div>
+                     <label className="text-sm font-bold text-gray-700 mb-2 block">1. Obter Código no Firebase</label>
+                     <ol className="text-xs text-gray-600 space-y-2 list-decimal pl-4 mb-4 bg-gray-50 p-3 rounded-lg border">
+                        <li>Vá em <strong>Configurações do Projeto</strong>.</li>
+                        <li>Role até <strong>Seus aplicativos</strong>.</li>
+                        <li>Copie o trecho dentro de <code>const firebaseConfig = &#123;...&#125;;</code></li>
+                     </ol>
+                     <a href="https://console.firebase.google.com/" target="_blank" className="text-xs flex items-center gap-1 text-blue-600 hover:underline font-bold">
+                        Abrir Console Firebase <ExternalLink size={10}/>
+                     </a>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                      <Database size={14}/> Cole o JSON aqui
+                    </label>
+                    <textarea 
+                      value={fbConfig}
+                      onChange={e => {setFbConfig(e.target.value); setError('');}}
+                      placeholder='{ "apiKey": "AIza...", "authDomain": "..." }'
+                      className="w-full h-32 p-3 border rounded-lg text-xs font-mono bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                    ></textarea>
+                  </div>
+
+                  {error && <p className="text-red-500 text-xs font-bold bg-red-50 p-2 rounded">{error}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                    <Sparkles size={14}/> Gemini API Key (Opcional)
-                  </label>
-                  <input 
-                    type="text" 
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
-                    className="w-full p-3 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="AIzaSy..."
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Para Inteligência Artificial (Google AI Studio)</p>
+                <div className="space-y-4 border-l pl-0 md:pl-8 border-gray-100">
+                   <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-2">
+                      <Sparkles size={14}/> Gemini API Key (Opcional)
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">Para relatórios com Inteligência Artificial.</p>
+                    <input 
+                      type="text" 
+                      value={apiKey}
+                      onChange={e => setApiKey(e.target.value)}
+                      className="w-full p-3 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="Cole sua chave AIzaSy..."
+                    />
+                  </div>
+                  
+                  <div className="pt-4">
+                    <button onClick={handleSave} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex justify-center items-center gap-2">
+                      Salvar e Entrar <ArrowRight size={18}/>
+                    </button>
+                  </div>
                 </div>
-
-                <button onClick={handleSave} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all mt-4 shadow-lg hover:shadow-blue-500/30">
-                  Salvar e Iniciar
-                </button>
               </div>
             </div>
           </div>
@@ -169,22 +206,33 @@
         useEffect(() => {
           const stored = localStorage.getItem(CONFIG_KEY);
           if (stored) {
-            const parsed = JSON.parse(stored);
-            setConfig(parsed);
-            const firebaseApp = initializeApp(parsed.firebase);
-            const firestore = getFirestore(firebaseApp);
-            setDb(firestore);
+            try {
+              const parsed = JSON.parse(stored);
+              setConfig(parsed);
+              const firebaseApp = initializeApp(parsed.firebase);
+              const firestore = getFirestore(firebaseApp);
+              setDb(firestore);
 
-            // Realtime Listeners
-            const unsubStudents = onSnapshot(collection(firestore, 'alunos'), (snap) => {
-              setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            });
+              // Realtime Listeners
+              const unsubStudents = onSnapshot(collection(firestore, 'alunos'), (snap) => {
+                setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+              });
 
-            const unsubAttendance = onSnapshot(query(collection(firestore, 'presencas'), orderBy('timestamp', 'desc')), (snap) => {
-              setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            });
+              const unsubAttendance = onSnapshot(query(collection(firestore, 'presencas'), orderBy('timestamp', 'desc')), (snap) => {
+                setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+              }, (error) => {
+                  console.error("Erro ao ler presenças:", error);
+                  if (error.code === 'permission-denied') {
+                      alert("⚠️ PERMISSÃO NEGADA!\n\nVocê precisa habilitar o 'Modo de Teste' no Firestore Database.\n\n1. Vá no Console Firebase\n2. Clique em Firestore Database\n3. Aba 'Regras'\n4. Altere 'allow read, write: if false;' para 'if true;'");
+                  }
+              });
 
-            return () => { unsubStudents(); unsubAttendance(); };
+              return () => { unsubStudents(); unsubAttendance(); };
+            } catch(e) {
+              console.error("Erro na inicialização", e);
+              localStorage.removeItem(CONFIG_KEY); // Reset se config for inválida
+              window.location.reload();
+            }
           }
         }, []);
 
@@ -194,7 +242,6 @@
           await addDoc(collection(db, 'alunos'), {
             ...data,
             createdAt: serverTimestamp(),
-            // ID Virtual para QR Code (simulando um crachá fixo)
             qrCodeValue: Math.random().toString(36).substr(2, 9)
           });
         };
@@ -206,12 +253,12 @@
 
         const handleMarkAttendance = async (studentId) => {
           if (!db) return;
+          // Tenta achar pelo ID do documento ou pelo valor do QR Code
           const student = students.find(s => s.id === studentId || s.qrCodeValue === studentId);
           if (!student) throw new Error("Aluno não encontrado!");
 
           const today = new Date().toISOString().split('T')[0];
           
-          // Check duplicate localmente (para feedback rápido, Firestore rules devem garantir no backend)
           const already = attendance.find(a => a.studentId === student.id && a.dateString === today);
           if (already) throw new Error(`${student.name} já registrado hoje!`);
 
@@ -246,7 +293,7 @@
         };
 
         const handleLogout = () => {
-            if(confirm("Isso desconectará o banco de dados. Deseja continuar?")) {
+            if(confirm("Isso desconectará o banco de dados deste dispositivo. Deseja continuar?")) {
                 localStorage.removeItem(CONFIG_KEY);
                 window.location.reload();
             }
@@ -254,7 +301,7 @@
 
         // Render Checking
         if (!config) return <SetupScreen />;
-        if (!db) return <div className="h-screen flex items-center justify-center">Carregando Firebase...</div>;
+        if (!db) return <div className="h-screen flex items-center justify-center text-blue-600 font-bold animate-pulse flex-col gap-2"><Database className="animate-bounce"/> Conectando ao Firebase...</div>;
 
         // --- SUB-COMPONENTS RENDER ---
 
@@ -348,6 +395,7 @@
                                             </td>
                                         </tr>
                                     ))}
+                                    {filtered.length === 0 && <tr><td colSpan="3" className="p-6 text-center text-gray-400">Nenhum aluno encontrado.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -413,6 +461,7 @@
                                         </td>
                                     </tr>
                                 ))}
+                                {list.length === 0 && <tr><td colSpan="2" className="p-6 text-center text-gray-400">Nenhum registro para esta data.</td></tr>}
                             </tbody>
                         </table>
                     </div>
