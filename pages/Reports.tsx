@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Filter, FileText, Check, X as XIcon } from 'lucide-react';
-import { Student, AttendanceRecord, PastoralType } from '../types';
+import { Student, AttendanceRecord, PastoralType } from '../types.ts';
 
 interface ReportsProps {
   students: Student[];
