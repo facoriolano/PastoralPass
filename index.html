@@ -71,7 +71,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão 7.3 (Câmera Nativa)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão 7.4 (Scanner Limpo)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -216,12 +216,11 @@
               
               const timer = setTimeout(() => {
                   if (document.getElementById('reader')) {
-                       // Usa a classe Html5Qrcode diretamente (não o Scanner) para evitar UI
+                       // Usa a classe Html5Qrcode diretamente
                        html5QrCode = new Html5Qrcode("reader");
                        
-                       const config = { fps: 10, qrbox: 250 };
+                       const config = { fps: 15, qrbox: 250 };
                        
-                       // Inicia diretamente com a câmera traseira (environment)
                        html5QrCode.start(
                            { facingMode: "environment" }, 
                            config,
@@ -250,8 +249,8 @@
           }, []);
 
           return (
-              <div className="bg-black rounded-xl overflow-hidden mb-6 p-0 border-4 border-slate-900 relative min-h-[300px]">
-                  <div id="reader" style={{width: '100%', minHeight: '300px', background: 'black'}}></div>
+              <div className="bg-black rounded-xl overflow-hidden mb-6 p-0 border-4 border-slate-900 relative min-h-[400px]">
+                  <div id="reader" style={{width: '100%', minHeight: '400px', background: 'black'}}></div>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-white/50 text-xs">
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 className="animate-spin" />
@@ -268,7 +267,9 @@
         const [initError, setInitError] = useState(null);
         const [activeTab, setActiveTab] = useState('dashboard');
         const [sidebarOpen, setSidebarOpen] = useState(false);
+        const [modeSelectionOpen, setModeSelectionOpen] = useState(false);
         const [scannerOpen, setScannerOpen] = useState(false);
+        const [selectedScanMode, setSelectedScanMode] = useState('AULA');
         const [students, setStudents] = useState([]);
         const [attendance, setAttendance] = useState([]);
         const [aiLoading, setAiLoading] = useState(false);
@@ -478,14 +479,29 @@
              );
         };
 
-        const ScannerModal = ({ onClose }) => {
+        const ScannerSelectionModal = ({ onClose, onSelect }) => {
+            return (
+                <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+                     <button onClick={onClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50 p-2"><X size={32}/></button>
+                     <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 w-full max-w-sm animate-in text-center">
+                         <h3 className="text-white text-xl font-bold mb-8">O que vamos registrar?</h3>
+                         <div className="flex flex-col gap-4">
+                             <button onClick={() => onSelect('AULA')} className="bg-blue-600 hover:bg-blue-500 text-white p-6 rounded-xl font-bold text-lg flex items-center justify-center gap-4 transition-all hover:scale-105 shadow-xl shadow-blue-900/50">
+                                 <BookOpen size={28}/> CHAMADA AULA
+                             </button>
+                             <button onClick={() => onSelect('MISSA')} className="bg-purple-600 hover:bg-purple-500 text-white p-6 rounded-xl font-bold text-lg flex items-center justify-center gap-4 transition-all hover:scale-105 shadow-xl shadow-purple-900/50">
+                                 <Church size={28}/> CHAMADA MISSA
+                             </button>
+                         </div>
+                     </div>
+                </div>
+            );
+        };
+
+        const ScannerModal = ({ onClose, mode }) => {
             const [val, setVal] = useState('');
             const [status, setStatus] = useState('idle');
             const [msg, setMsg] = useState('');
-            const [scanMode, setScanMode] = useState('AULA');
-            const scanModeRef = useRef('AULA');
-
-            useEffect(() => { scanModeRef.current = scanMode; }, [scanMode]);
 
             const handleClose = () => {
                 onClose();
@@ -493,11 +509,10 @@
 
             const handleCode = async (code) => {
                 try {
-                    const currentMode = scanModeRef.current;
-                    const name = await handleMarkAttendance(code, currentMode);
+                    const name = await handleMarkAttendance(code, mode);
                     setStatus('success');
                     setMsg(name);
-                    setTimeout(() => { setStatus('idle'); setVal(''); setMsg(''); handleClose(); }, 1500);
+                    setTimeout(() => { setStatus('idle'); setVal(''); setMsg(''); /* handleClose(); remove to allow continuous scan */ }, 1500);
                 } catch (err) {
                     setStatus('error');
                     setMsg(err.message);
@@ -511,30 +526,36 @@
             }, []); 
 
             return (
-                <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
-                    <button onClick={handleClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50 p-2"><X size={32}/></button>
-                    <div className="w-full max-w-md text-center animate-in relative flex flex-col max-h-screen overflow-y-auto">
-                        
-                        <div className="flex bg-slate-800 p-1 rounded-xl mb-4">
-                            <button onClick={() => setScanMode('AULA')} className={`flex-1 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${scanMode === 'AULA' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
-                                <BookOpen size={18}/> AULA
-                            </button>
-                            <button onClick={() => setScanMode('MISSA')} className={`flex-1 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${scanMode === 'MISSA' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
-                                <Church size={18}/> MISSA
-                            </button>
-                        </div>
+                <div className="fixed inset-0 bg-black z-50 flex flex-col">
+                    <div className="absolute top-0 left-0 right-0 p-4 z-50 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent">
+                         <div className={`px-4 py-2 rounded-full backdrop-blur-md font-bold text-sm flex items-center gap-2 border shadow-lg ${mode === 'AULA' ? 'bg-blue-600/80 border-blue-400 text-white' : 'bg-purple-600/80 border-purple-400 text-white'}`}>
+                             {mode === 'AULA' ? <BookOpen size={16}/> : <Church size={16}/>} 
+                             Registrando: {mode}
+                         </div>
+                         <button onClick={handleClose} className="bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md transition"><X size={24}/></button>
+                    </div>
 
-                        <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-colors ${status === 'success' ? 'bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]' : status === 'error' ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.5)]' : scanMode === 'AULA' ? 'bg-blue-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.5)]' : 'bg-purple-600 text-white shadow-[0_0_30px_rgba(147,51,234,0.5)]'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
+                    <div className="flex-1 relative flex items-center justify-center bg-black">
+                        {/* Indicador de Status Central */}
+                        {(status === 'success' || status === 'error') && (
+                            <div className="absolute z-40 inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in">
+                                 <div className={`p-8 rounded-3xl flex flex-col items-center gap-4 shadow-2xl ${status === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                     {status === 'success' ? <CheckCircle size={64}/> : <AlertTriangle size={64}/>}
+                                     <span className="text-xl font-bold text-center">{msg}</span>
+                                 </div>
+                            </div>
+                        )}
                         
-                        {/* CÂMERA BLINDADA (SEM UI DE BOTÕES) */}
-                        {status === 'idle' && <CameraZone onScanSuccess={onScanSuccess} />}
-                        
-                        <form onSubmit={submit} className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
-                            <div className="relative"><input id="scanInput" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 rounded-xl p-4 text-center text-lg mb-4 focus:border-blue-500 outline-none transition-all font-mono text-white placeholder-slate-500" placeholder="CÓDIGO MANUAL" autoComplete="off"/></div>
-                            <button className={`w-full text-white py-3 rounded-xl font-bold transition-all shadow-lg ${scanMode === 'AULA' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20' : 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20'}`}>Confirmar {scanMode}</button>
-                        </form>
-                        
-                        {msg && <div className={`mt-6 p-4 rounded-xl font-bold animate-in text-lg ${status === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{msg}</div>}
+                        {/* CÂMERA BLINDADA */}
+                        <div className="absolute inset-0">
+                            <CameraZone onScanSuccess={onScanSuccess} />
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 bg-black pb-8">
+                         <form onSubmit={submit} className="relative max-w-sm mx-auto">
+                            <input id="scanInput" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800/80 border border-slate-700 rounded-full px-6 py-3 text-center text-white placeholder-slate-500 focus:border-blue-500 outline-none backdrop-blur-sm" placeholder="Digitar código manual..." autoComplete="off"/>
+                         </form>
                     </div>
                 </div>
             );
@@ -570,9 +591,25 @@
                         )}
                     </div>
                 </div>
-                <button onClick={() => setScannerOpen(true)} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 bg-blue-600 text-white p-4 rounded-2xl shadow-xl shadow-blue-600/40 hover:scale-110 transition-all active:scale-95 z-30 group"><ScanLine size={32} className="group-hover:rotate-90 transition-transform duration-500"/></button>
+                
+                {/* Botão Flutuante de Scanner (Abre Seleção) */}
+                <button onClick={() => setModeSelectionOpen(true)} className="fixed bottom-6 right-6 md:bottom-8 md:right-8 bg-blue-600 text-white p-4 rounded-2xl shadow-xl shadow-blue-600/40 hover:scale-110 transition-all active:scale-95 z-30 group"><ScanLine size={32} className="group-hover:rotate-90 transition-transform duration-500"/></button>
             </main>
-            {scannerOpen && <ScannerModal onClose={() => setScannerOpen(false)} />}
+            
+            {/* Modal de Seleção (Passo 1) */}
+            {modeSelectionOpen && (
+                <ScannerSelectionModal 
+                    onClose={() => setModeSelectionOpen(false)}
+                    onSelect={(mode) => {
+                        setSelectedScanMode(mode);
+                        setModeSelectionOpen(false);
+                        setScannerOpen(true);
+                    }}
+                />
+            )}
+            
+            {/* Modal de Câmera (Passo 2) */}
+            {scannerOpen && <ScannerModal mode={selectedScanMode} onClose={() => setScannerOpen(false)} />}
           </div>
         );
       }
