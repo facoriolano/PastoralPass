@@ -65,22 +65,20 @@ O único arquivo necessário para o site funcionar é o `index.html`. Os arquivo
 ---
 
 <div align="center">
-
-<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=20&duration=4000&pause=1000&color=F59E0B&background=00000000&center=true&vCenter=true&width=800&height=60&lines=DEDICAT%C3%93RIA+ESPECIAL" alt="Dedicatória Especial" />
-
 <br>
 
-<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=12&duration=5000&pause=2000&color=E5E7EB&background=00000000&center=true&vCenter=true&width=900&height=50&lines=%22A+Eucaristia+%C3%A9+a+minha+autoestrada+para+o+C%C3%A9u.%22" alt="Frase de São Carlo Acutis" />
+<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=18&duration=4000&pause=1000&color=EAB308&background=00000000&center=true&vCenter=true&width=600&height=50&lines=DEDICAT%C3%93RIA+ESPECIAL" alt="Dedicatória Especial" />
 
-<br>
+<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=14&duration=5000&pause=2000&color=FFFFFF&background=00000000&center=true&vCenter=true&width=800&height=80&lines=%22A+Eucaristia+%C3%A9+a+minha+autoestrada;para+o+C%C3%A9u.%22" alt="Frase de São Carlo Acutis" />
 
-<p style="color: #9CA3AF; font-style: italic;">
+<p style="color: #9CA3AF; font-style: italic; max-width: 600px;">
 Dedicado a <strong>São Carlo Acutis</strong> (Canonizado em 12/10/2025), padroeiro da Internet,<br>
-e à <strong>Turma de Crisma 26</strong>.
+e à <strong>Turma de Crisma 26</strong>. Que este aplicativo seja um instrumento digital para aproximar corações de Deus.
 </p>
 
 <code>#SaoCarloAcutis</code> &nbsp; <code>#Crisma26</code>
 
+<br>
 </div>
 
 ---
