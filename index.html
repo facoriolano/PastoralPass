@@ -50,38 +50,18 @@
       .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       
-      /* FORÇA BRUTA NO CSS PARA A CÂMERA APARECER */
+      /* Limpeza visual do Scanner */
       #reader {
-          background: #000;
+          width: 100%;
           border-radius: 12px;
           overflow: hidden;
-          width: 100% !important;
+          background: black;
       }
       #reader video {
+          width: 100% !important;
+          height: 100% !important;
           object-fit: cover;
-          width: 100% !important;
-          height: auto !important;
-          display: block !important;
           border-radius: 12px;
-      }
-      #html5-qrcode-button-camera-permission {
-          background-color: #2563eb !important;
-          color: white !important;
-          padding: 15px 20px !important;
-          border-radius: 8px !important;
-          font-weight: 800 !important;
-          font-size: 16px !important;
-          border: none !important;
-          margin-bottom: 10px !important;
-          width: 100% !important;
-          display: block !important;
-          cursor: pointer;
-      }
-      #html5-qrcode-button-camera-stop {
-          display: none !important; /* Esconde botão de parar para evitar acidentes */
-      }
-      #html5-qrcode-anchor-scan-type-change {
-          display: none !important;
       }
     </style>
   </head>
@@ -91,7 +71,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão 7.2 (Scanner Blindado)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão 7.3 (Câmera Nativa)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -222,11 +202,8 @@
         );
       }
 
-      /* COMPONENTE DE CÂMERA ISOLADO (NÃO MEXA AQUI) */
-      /* Este componente nunca re-renderiza, evitando que a câmera pisque ou fique preta */
+      /* COMPONENTE DE CÂMERA ISOLADO (SEM UI DE SELEÇÃO) */
       const CameraZone = React.memo(({ onScanSuccess }) => {
-          // Usa um ref para guardar a função de callback mais recente, 
-          // sem precisar reiniciar o useEffect da câmera
           const callbackRef = useRef(onScanSuccess);
           
           useEffect(() => {
@@ -234,56 +211,56 @@
           }, [onScanSuccess]);
 
           useEffect(() => {
-              console.log("Iniciando Câmera Blindada...");
-              let scanner = null;
+              console.log("Iniciando Câmera API Direta...");
+              let html5QrCode = null;
               
-              // Pequeno delay para garantir que a DIV existe
               const timer = setTimeout(() => {
                   if (document.getElementById('reader')) {
-                       // Limpa qualquer lixo anterior
-                       if(window.html5QrcodeScanner) {
-                           try { window.html5QrcodeScanner.clear(); } catch(e){}
-                       }
-
-                       scanner = new Html5QrcodeScanner(
-                          "reader", 
-                          { 
-                              fps: 10, 
-                              qrbox: 250,
-                              rememberLastUsedCamera: true
-                          }, 
-                          false
-                       );
+                       // Usa a classe Html5Qrcode diretamente (não o Scanner) para evitar UI
+                       html5QrCode = new Html5Qrcode("reader");
                        
-                       // A mágica: chama a função que está no Ref
-                       scanner.render((txt, res) => {
-                           if(callbackRef.current) callbackRef.current(txt, res);
-                       }, (err) => {
-                           // Ignora erros de frame vazio
+                       const config = { fps: 10, qrbox: 250 };
+                       
+                       // Inicia diretamente com a câmera traseira (environment)
+                       html5QrCode.start(
+                           { facingMode: "environment" }, 
+                           config,
+                           (decodedText, decodedResult) => {
+                               if(callbackRef.current) callbackRef.current(decodedText, decodedResult);
+                           },
+                           (errorMessage) => {
+                               // erros de leitura (frame sem qr code) são ignorados
+                           }
+                       ).catch((err) => {
+                           console.error("Erro ao iniciar câmera", err);
+                           const reader = document.getElementById('reader');
+                           if(reader) reader.innerHTML = `<div class='p-4 text-center text-red-500 text-sm'>Erro ao acessar câmera: ${err.message || 'Permissão negada'}.<br/>Tente usar o código manual.</div>`;
                        });
-
-                       window.html5QrcodeScanner = scanner;
                   }
               }, 300);
 
               return () => {
                   clearTimeout(timer);
-                  if (scanner) {
-                      try { scanner.clear(); } catch(e) { console.error("Erro ao limpar scanner", e); }
+                  if (html5QrCode) {
+                      html5QrCode.stop().then(() => {
+                          html5QrCode.clear();
+                      }).catch(err => console.error("Erro ao parar", err));
                   }
               };
-          }, []); // Dependência VAZIA = roda só uma vez na vida do modal
+          }, []);
 
           return (
               <div className="bg-black rounded-xl overflow-hidden mb-6 p-0 border-4 border-slate-900 relative min-h-[300px]">
-                  <div id="reader" style={{width: '100%', minHeight: '300px'}}></div>
-                  {/* Overlay de carregamento que some quando a câmera abre (gerenciado pela lib) */}
+                  <div id="reader" style={{width: '100%', minHeight: '300px', background: 'black'}}></div>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-white/50 text-xs">
-                      Aguardando permissão...
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="animate-spin" />
+                        Acessando câmera...
+                      </div>
                   </div>
               </div>
           );
-      }, () => true); // "Are props equal?" = TRUE. Isso impede o React de re-renderizar este componente.
+      }, () => true);
 
       const App = () => {
         const [config, setConfig] = useState(null);
@@ -511,7 +488,6 @@
             useEffect(() => { scanModeRef.current = scanMode; }, [scanMode]);
 
             const handleClose = () => {
-                if(window.html5QrcodeScanner) { try { window.html5QrcodeScanner.clear(); } catch(e){} }
                 onClose();
             };
 
@@ -530,15 +506,9 @@
 
             const submit = (e) => { e.preventDefault(); if(val) handleCode(val); };
 
-            // Wrapper para a função de sucesso para garantir que seja estável
             const onScanSuccess = useCallback((decodedText) => {
                  handleCode(decodedText);
-            }, []); // Dependências vazias pois handleCode é "quase" estática (usa refs internas) 
-                    // Se precisar, adicione handleCode, mas idealmente handleCode deveria usar useCallback também.
-                    // Como handleCode muda a cada render, isso forçaria o reload da câmera se passássemos direto.
-                    // Mas handleCode muda a cada render pq usa state. 
-                    // TRUQUE: handleCode na verdade não precisa ser recriada se usarmos Refs para tudo.
-                    // Mas para simplificar, o CameraZone usa um Ref interno para pegar a versão mais nova da função.
+            }, []); 
 
             return (
                 <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
@@ -556,7 +526,7 @@
 
                         <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-colors ${status === 'success' ? 'bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]' : status === 'error' ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.5)]' : scanMode === 'AULA' ? 'bg-blue-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.5)]' : 'bg-purple-600 text-white shadow-[0_0_30px_rgba(147,51,234,0.5)]'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
                         
-                        {/* AQUI ESTÁ A MÁGICA: Componente isolado */}
+                        {/* CÂMERA BLINDADA (SEM UI DE BOTÕES) */}
                         {status === 'idle' && <CameraZone onScanSuccess={onScanSuccess} />}
                         
                         <form onSubmit={submit} className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
