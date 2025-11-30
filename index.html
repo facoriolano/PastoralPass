@@ -93,7 +93,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão 7.0 (Aula & Missa)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão 7.1 (Correção Câmera)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -307,8 +307,7 @@
           if (!student) throw new Error(`Aluno não encontrado (Lido: ${scannedCode})`);
           
           const today = new Date().toISOString().split('T')[0];
-          // Verifica duplicidade baseada no TIPO (Aula ou Missa)
-          // Se registro antigo não tem tipo, assume que é AULA.
+          
           const already = attendance.find(a => 
               a.studentId === student.id && 
               a.dateString === today && 
@@ -409,9 +408,7 @@
              
              const list = useMemo(() => students.map(s => ({ 
                  ...s, 
-                 // Verifica se tem presença na data E se o tipo é Aula (ou nulo)
                  presentAula: attendance.some(a => a.studentId === s.id && a.dateString === date && (a.type === 'AULA' || !a.type)),
-                 // Verifica se tem presença na data E se o tipo é Missa
                  presentMissa: attendance.some(a => a.studentId === s.id && a.dateString === date && a.type === 'MISSA')
              })), [students, attendance, date]);
 
@@ -456,10 +453,20 @@
             const [val, setVal] = useState('');
             const [status, setStatus] = useState('idle');
             const [msg, setMsg] = useState('');
-            // Estado para o modo de leitura
-            const [scanMode, setScanMode] = useState('AULA'); // 'AULA' | 'MISSA'
+            const [scanMode, setScanMode] = useState('AULA');
             
+            // REF para evitar reiniciar a câmera ao trocar de botão
+            const scanModeRef = useRef('AULA');
+
             useEffect(() => {
+                scanModeRef.current = scanMode;
+            }, [scanMode]);
+
+            useEffect(() => {
+                if (window.html5QrcodeScanner) { 
+                    try { window.html5QrcodeScanner.clear(); } catch(e){}
+                }
+
                 const timer = setTimeout(() => {
                     const onScanSuccess = (decodedText, decodedResult) => {
                         if (window.html5QrcodeScanner) {
@@ -469,15 +476,18 @@
                     };
                     const onScanFailure = (error) => {};
 
-                    window.html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
-                    window.html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
+                    window.html5QrcodeScanner = scanner;
+                    scanner.render(onScanSuccess, onScanFailure);
                 }, 100);
 
                 return () => {
                     clearTimeout(timer);
-                    if (window.html5QrcodeScanner) { try { window.html5QrcodeScanner.clear(); } catch(e){} }
+                    if (window.html5QrcodeScanner) { 
+                        try { window.html5QrcodeScanner.clear(); } catch(e){} 
+                    }
                 };
-            }, [scanMode]); // Re-render scanner se mudar o modo? Não necessariamente, mas limpa o estado.
+            }, []); // Efeito roda apenas UMA vez ao abrir o modal
 
             const handleClose = () => {
                 if (window.html5QrcodeScanner) { try { window.html5QrcodeScanner.clear(); } catch(e){} }
@@ -486,8 +496,9 @@
 
             const handleCode = async (code) => {
                 try {
-                    // Passa o scanMode atual para a função de presença
-                    const name = await handleMarkAttendance(code, scanMode);
+                    // Usa o REF para pegar o modo atual selecionado pelo usuário
+                    const currentMode = scanModeRef.current;
+                    const name = await handleMarkAttendance(code, currentMode);
                     setStatus('success');
                     setMsg(name);
                     setTimeout(() => { setStatus('idle'); setVal(''); setMsg(''); handleClose(); }, 1500);
@@ -504,7 +515,6 @@
                     <button onClick={handleClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50 p-2"><X size={32}/></button>
                     <div className="w-full max-w-md text-center animate-in relative flex flex-col max-h-screen overflow-y-auto">
                         
-                        {/* Seletor de Modo */}
                         <div className="flex bg-slate-800 p-1 rounded-xl mb-4">
                             <button onClick={() => setScanMode('AULA')} className={`flex-1 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${scanMode === 'AULA' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                                 <BookOpen size={18}/> AULA
