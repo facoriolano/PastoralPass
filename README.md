@@ -1,13 +1,23 @@
 <div align="center">
 
 <a href="https://github.com/facoriolano">
-<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=65&duration=4000&pause=1000&color=C084FC&background=00000000&center=true&vCenter=true&width=1200&height=150&lines=%40FACORIOLANO" alt="Typing SVG" />
+<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=50&duration=4000&pause=1000&color=C084FC&background=00000000&center=true&vCenter=true&width=1000&height=100&lines=%40FACORIOLANO" alt="Typing SVG" />
 </a>
 
-[![Database](https://img.shields.io/badge/Database-Firestore-7C3AED?style=for-the-badge&logo=firebase&logoColor=white)](https://firebase.google.com/)
-[![Style](https://img.shields.io/badge/Style-Tailwind-4338ca?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Status](https://img.shields.io/badge/Status-Online-3b82f6?style=for-the-badge&logo=pwa&logoColor=white)](https://github.com/facoriolano)
-[![Instagram](https://img.shields.io/badge/Instagram-%40facoriolano-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://instagram.com/facoriolano)
+<div style="display: flex; justify-content: center; gap: 10px;">
+<a href="https://firebase.google.com/">
+  <img src="https://img.shields.io/badge/Database-Firestore-7C3AED?style=for-the-badge&logo=firebase&logoColor=white" height="28" />
+</a>
+<a href="https://tailwindcss.com/">
+  <img src="https://img.shields.io/badge/Style-Tailwind-4338ca?style=for-the-badge&logo=tailwindcss&logoColor=white" height="28" />
+</a>
+<a href="https://github.com/facoriolano">
+  <img src="https://img.shields.io/badge/Status-Online-3b82f6?style=for-the-badge&logo=pwa&logoColor=white" height="28" />
+</a>
+<a href="https://instagram.com/facoriolano">
+  <img src="https://img.shields.io/badge/Instagram-%40facoriolano-E4405F?style=for-the-badge&logo=instagram&logoColor=white" height="28" />
+</a>
+</div>
 
 </div>
 
@@ -54,11 +64,24 @@ O único arquivo necessário para o site funcionar é o `index.html`. Os arquivo
 
 ---
 
-### 🙏 Dedicatória
+<div align="center">
 
-> *"A Eucaristia é a minha autoestrada para o Céu."* — **São Carlo Acutis**
+<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=20&duration=4000&pause=1000&color=F59E0B&background=00000000&center=true&vCenter=true&width=800&height=60&lines=DEDICAT%C3%93RIA+ESPECIAL" alt="Dedicatória Especial" />
 
-Dedico este aplicativo e o **Curso de Crisma 26** a **São Carlo Acutis** (canonizado em 12 de Outubro de 2025), padroeiro da internet, que nos inspirou a usar a tecnologia como instrumento de evangelização.
+<br>
+
+<img src="https://readme-typing-svg.herokuapp.com?font=Press+Start+2P&weight=400&size=12&duration=5000&pause=2000&color=E5E7EB&background=00000000&center=true&vCenter=true&width=900&height=50&lines=%22A+Eucaristia+%C3%A9+a+minha+autoestrada+para+o+C%C3%A9u.%22" alt="Frase de São Carlo Acutis" />
+
+<br>
+
+<p style="color: #9CA3AF; font-style: italic;">
+Dedicado a <strong>São Carlo Acutis</strong> (Canonizado em 12/10/2025), padroeiro da Internet,<br>
+e à <strong>Turma de Crisma 26</strong>.
+</p>
+
+<code>#SaoCarloAcutis</code> &nbsp; <code>#Crisma26</code>
+
+</div>
 
 ---
 
