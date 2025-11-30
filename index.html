@@ -51,8 +51,8 @@
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       
       /* Ajuste para o leitor de QR Code não quebrar o layout */
-      #reader video { object-fit: cover; border-radius: 12px; }
-      #reader__scan_region { display: none; } /* Esconde borda padrão feia */
+      #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+      #reader video { object-fit: cover; width: 100%; height: 100%; border-radius: 12px; }
     </style>
   </head>
   <body>
@@ -61,7 +61,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão Estável 4.1 (Camera Support)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão Estável 4.2 (Camera Fix)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -94,7 +94,7 @@
 
     <!-- App Logic -->
     <script type="text/babel" data-type="module" data-presets="react">
-      import React, { useState, useEffect, useMemo } from 'react';
+      import React, { useState, useEffect, useMemo, useRef } from 'react';
       import ReactDOM from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
       import { 
@@ -106,7 +106,7 @@
         Home, Users, ClipboardList, PieChart, Github, Scan, X, 
         CheckCircle, AlertTriangle, Plus, Trash2, Search, QrCode,
         UserCheck, UserX, Calendar, Sparkles, ScanLine, Download, 
-        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink, Camera
+        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink, Camera, Loader2
       } from 'lucide-react';
       
       import { 
@@ -319,17 +319,30 @@
             const [status, setStatus] = useState('idle');
             const [msg, setMsg] = useState('');
             const [isScanning, setIsScanning] = useState(false);
+            const scannerRef = useRef(null);
 
-            useEffect(() => {
-                if(!isScanning) document.getElementById('scanInput')?.focus();
-            }, [isScanning]);
+            const stopScanner = () => {
+                if(scannerRef.current) {
+                    scannerRef.current.stop().then(() => {
+                        scannerRef.current.clear();
+                        scannerRef.current = null;
+                        setIsScanning(false);
+                    }).catch(err => console.log("Stop error", err));
+                }
+            };
+
+            const handleClose = () => {
+                stopScanner();
+                onClose();
+            };
 
             const handleCode = async (code) => {
+                stopScanner(); // Para a câmera ao detectar
                 try {
                     const name = await handleMarkAttendance(code);
                     setStatus('success');
                     setMsg(name);
-                    setTimeout(() => { setStatus('idle'); setVal(''); setMsg(''); onClose(); }, 1500);
+                    setTimeout(() => { setStatus('idle'); setVal(''); setMsg(''); handleClose(); }, 1500);
                 } catch (err) {
                     setStatus('error');
                     setMsg(err.message);
@@ -338,23 +351,40 @@
 
             const submit = (e) => { e.preventDefault(); if(val) handleCode(val); };
 
-            const startCamera = () => {
+            const startCamera = async () => {
                 setIsScanning(true);
-                setTimeout(() => {
-                    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-                    scanner.render((decodedText) => { scanner.clear(); setIsScanning(false); handleCode(decodedText); }, (err) => {});
+                // Pequeno delay para garantir que o elemento #reader existe
+                setTimeout(async () => {
+                    try {
+                        const html5QrCode = new Html5Qrcode("reader");
+                        scannerRef.current = html5QrCode;
+                        await html5QrCode.start(
+                            { facingMode: "environment" },
+                            { fps: 10, qrbox: { width: 250, height: 250 } },
+                            (decodedText) => { handleCode(decodedText); },
+                            (errorMessage) => { /* ignora erros de frame vazio */ }
+                        );
+                    } catch (err) {
+                        console.error(err);
+                        setIsScanning(false);
+                        alert("Não foi possível acessar a câmera. Verifique as permissões do navegador ou se o site está usando HTTPS.");
+                    }
                 }, 100);
             };
 
             return (
                 <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-                    <button onClick={onClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50"><X size={32}/></button>
+                    <button onClick={handleClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50"><X size={32}/></button>
                     <div className="bg-white p-6 rounded-2xl w-full max-w-sm text-center animate-in shadow-2xl overflow-hidden relative">
                         <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${status === 'success' ? 'bg-green-100 text-green-600' : status === 'error' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
                         <h2 className="text-xl font-bold mb-4 text-gray-800">Registrar Presença</h2>
                         
                         {isScanning ? (
-                            <div id="reader" className="w-full mb-4 rounded-lg overflow-hidden bg-black min-h-[250px]"></div>
+                            <div className="mb-4 relative rounded-xl overflow-hidden bg-black w-full h-64 flex items-center justify-center">
+                                <div id="reader" className="w-full h-full"></div>
+                                <div className="absolute inset-0 border-2 border-blue-500/50 pointer-events-none"></div>
+                                <div className="absolute bottom-2 left-0 w-full text-center text-white text-xs bg-black/50 py-1">Aponte para o QR Code</div>
+                            </div>
                         ) : (
                             <button onClick={startCamera} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold mb-6 flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-lg">
                                 <Camera size={20}/> Abrir Câmera
