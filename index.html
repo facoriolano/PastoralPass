@@ -50,9 +50,29 @@
       .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       
-      /* Ajuste para o leitor de QR Code não quebrar o layout */
-      #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+      /* Ajuste para o leitor de QR Code */
+      #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; position: relative; }
       #reader video { object-fit: cover; width: 100%; height: 100%; border-radius: 12px; }
+      
+      /* Animação do Scanner Laser */
+      .scanner-laser {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: red;
+        box-shadow: 0 0 4px red;
+        animation: scan 2s infinite;
+        z-index: 10;
+        display: none; /* Ativado via JS se necessário, ou usar classes */
+      }
+      @keyframes scan {
+        0% { top: 10%; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { top: 90%; opacity: 0; }
+      }
     </style>
   </head>
   <body>
@@ -61,7 +81,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão Estável 4.5 (Camera Boost)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão Estável 5.0 (HD Scanner)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -412,38 +432,38 @@
 
             const startCamera = async () => {
                 setIsScanning(true);
-                // Pequeno delay para garantir DOM
                 setTimeout(async () => {
                     try {
                         const html5QrCode = new Html5Qrcode("reader");
                         scannerRef.current = html5QrCode;
                         
+                        // Configuração Agressiva para Alta Qualidade
                         const config = { 
-                            fps: 15, // Mais rápido
+                            fps: 10, // FPS menor ajuda processamento
                             qrbox: { width: 250, height: 250 },
                             aspectRatio: 1.0,
-                            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+                            formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ] // Restringe apenas QR
                         };
                         
-                        // Tenta usar a câmera traseira com configurações otimizadas
+                        // Força resolução HD ou superior
+                        const constraints = {
+                            facingMode: "environment",
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            focusMode: "continuous"
+                        };
+                        
                         await html5QrCode.start(
-                            { facingMode: "environment" },
+                            constraints,
                             config,
                             (decodedText) => { handleCode(decodedText); },
                             (errorMessage) => { /* ignore frame errors */ }
                         );
                         
-                        // Tenta aplicar foco contínuo se suportado pelo hardware
-                        try {
-                           const track = html5QrCode.getRunningTrackCameraCapabilities();
-                           // Se precisar acessar recursos avançados de track, seria aqui.
-                           // A API Html5Qrcode já tenta focar automaticamente em browsers modernos.
-                        } catch(e) {}
-                        
                     } catch (err) {
                         console.error(err);
                         setIsScanning(false);
-                        alert("Não foi possível acessar a câmera. Verifique se deu permissão e se está usando HTTPS.");
+                        alert("Não foi possível acessar a câmera com alta qualidade. Tente em um ambiente bem iluminado.");
                     }
                 }, 100);
             };
@@ -457,17 +477,18 @@
                         {isScanning ? (
                             <div className="mb-6 relative rounded-2xl overflow-hidden bg-black w-full aspect-square border-4 border-slate-800 shadow-2xl">
                                 <div id="reader" className="w-full h-full"></div>
+                                <div className="scanner-laser"></div>
                                 <div className="absolute inset-0 pointer-events-none">
                                    <div className="absolute top-0 left-0 w-12 h-12 border-l-4 border-t-4 border-blue-500 rounded-tl-xl"></div>
                                    <div className="absolute top-0 right-0 w-12 h-12 border-r-4 border-t-4 border-blue-500 rounded-tr-xl"></div>
                                    <div className="absolute bottom-0 left-0 w-12 h-12 border-l-4 border-b-4 border-blue-500 rounded-bl-xl"></div>
                                    <div className="absolute bottom-0 right-0 w-12 h-12 border-r-4 border-b-4 border-blue-500 rounded-br-xl"></div>
                                 </div>
-                                <div className="absolute bottom-4 left-0 w-full text-center text-white/80 text-sm font-medium bg-black/40 py-1 backdrop-blur-sm">Aponte para o Crachá</div>
+                                <div className="absolute bottom-4 left-0 w-full text-center text-white/80 text-sm font-medium bg-black/40 py-1 backdrop-blur-sm">Aponte para o QR Code</div>
                             </div>
                         ) : (
                             <button onClick={startCamera} className="w-full bg-slate-800 text-white py-5 rounded-2xl font-bold mb-6 flex items-center justify-center gap-3 hover:bg-slate-700 transition-all shadow-lg border border-slate-700">
-                                <Camera size={24}/> Abrir Câmera
+                                <Camera size={24}/> Abrir Câmera (HD)
                             </button>
                         )}
                         
