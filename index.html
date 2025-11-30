@@ -21,15 +21,15 @@
       window.process = { env: { NODE_ENV: 'production' } };
     </script>
 
-    <!-- Import Map -->
+    <!-- Import Map: Trocando para Gstatic (Oficial Google) para garantir estabilidade do Firebase -->
     <script type="importmap">
     {
       "imports": {
         "react": "https://esm.sh/react@18.2.0",
         "react-dom": "https://esm.sh/react-dom@18.2.0",
         "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "firebase/app": "https://esm.sh/firebase@10.8.0/app",
-        "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
         "recharts": "https://esm.sh/recharts@2.12.2?external=react,react-dom",
         "lucide-react": "https://esm.sh/lucide-react@0.344.0"
       }
@@ -54,7 +54,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão Final 3.1</p>
+        <p class="text-xs mt-2 text-gray-400">Versão Estável 4.0 (Gstatic)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -265,8 +265,6 @@
               return () => { unsubStudents(); unsubAttendance(); };
             } catch(e) {
               console.error("Init Error", e);
-              // NÃO remove o localStorage automaticamente para evitar loop
-              // Apenas exibe o erro
               setInitError(e.message || "Erro desconhecido na inicialização");
             }
           }
