@@ -7,6 +7,7 @@
 [![Database](https://img.shields.io/badge/Database-Firestore-7C3AED?style=for-the-badge&logo=firebase&logoColor=white)](https://firebase.google.com/)
 [![Style](https://img.shields.io/badge/Style-Tailwind-4338ca?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Status](https://img.shields.io/badge/Status-Online-3b82f6?style=for-the-badge&logo=pwa&logoColor=white)](https://github.com/facoriolano)
+[![Instagram](https://img.shields.io/badge/Instagram-%40facoriolano-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://instagram.com/facoriolano)
 
 </div>
 
@@ -50,6 +51,14 @@ const firebaseConfig = {
 
 Para simplificar o deploy, este projeto usa a arquitetura **Single File Component**.
 O único arquivo necessário para o site funcionar é o `index.html`. Os arquivos `.tsx` antigos foram removidos para evitar conflitos.
+
+---
+
+### 🙏 Dedicatória
+
+> *"A Eucaristia é a minha autoestrada para o Céu."* — **São Carlo Acutis**
+
+Dedico este aplicativo e o **Curso de Crisma 26** a **São Carlo Acutis** (canonizado em 12 de Outubro de 2025), padroeiro da internet, que nos inspirou a usar a tecnologia como instrumento de evangelização.
 
 ---
 
