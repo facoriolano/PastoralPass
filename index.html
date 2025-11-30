@@ -61,7 +61,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão Estável 4.4 (Custom Code)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão Estável 4.5 (Camera Boost)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -212,15 +212,11 @@
               setConfig(parsed);
               if (!parsed.firebase) throw new Error("Configuração do Firebase inválida.");
               
-              // Verifica se o Firebase já foi inicializado
               let firebaseApp;
               try {
                 firebaseApp = initializeApp(parsed.firebase);
               } catch (error) {
-                // Se der erro de "já existe", tenta pegar a instância padrão ou ignora
                 if (error.code === 'app/duplicate-app') {
-                   // Hack para recuperar a instancia se ja existir (em hot reload)
-                   // Em produção real, o reload da pagina limpa isso.
                    window.location.reload();
                    return;
                 } else {
@@ -243,18 +239,16 @@
         const handleAddStudent = async (data) => {
           if (!db) return;
           const qrCodeValue = data.qrCodeValue && data.qrCodeValue.trim() !== '' 
-              ? data.qrCodeValue 
+              ? data.qrCodeValue.trim()
               : Math.random().toString(36).substr(2, 9).toUpperCase();
               
           if (data.id) {
-             // Edição
              await updateDoc(doc(db, 'alunos', data.id), { 
                  name: data.name, 
                  pastoral: data.pastoral, 
                  qrCodeValue: qrCodeValue
              });
           } else {
-             // Criação
              await addDoc(collection(db, 'alunos'), { 
                  name: data.name, 
                  pastoral: data.pastoral, 
@@ -268,12 +262,24 @@
 
         const handleMarkAttendance = async (scannedCode) => {
           if (!db) return;
-          const cleanCode = scannedCode.trim();
+          const cleanCode = scannedCode.trim().toLowerCase();
           
-          // Tenta encontrar por código exato ou ID
-          const student = students.find(s => s.qrCodeValue === cleanCode || s.id === cleanCode);
+          // Lógica de Busca Melhorada (Fuzzy Search)
+          const student = students.find(s => {
+              const dbCode = (s.qrCodeValue || '').trim().toLowerCase();
+              const studentId = s.id.toLowerCase();
+              
+              // 1. Busca Exata
+              if (dbCode === cleanCode || studentId === cleanCode) return true;
+              
+              // 2. Busca Contida (Se o código salvo for "01", aceita "01 FABRICIO...")
+              // Verifica se o código do banco existe e tem pelo menos 2 caracteres para evitar falsos positivos
+              if (dbCode.length >= 2 && cleanCode.includes(dbCode)) return true;
+              
+              return false;
+          });
           
-          if (!student) throw new Error(`Aluno não encontrado para o código: ${cleanCode}`);
+          if (!student) throw new Error(`Aluno não encontrado (Lido: ${scannedCode})`);
           
           const today = new Date().toISOString().split('T')[0];
           const already = attendance.find(a => a.studentId === student.id && a.dateString === today);
@@ -349,7 +355,7 @@
                         <div className="p-4 border-b bg-gray-50/50"><div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" placeholder="Buscar aluno..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full pl-10 p-2 border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-100 outline-none"/></div></div>
                         <div className="overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-50 text-gray-600 text-xs uppercase font-bold"><tr><th className="p-4">Nome</th><th className="p-4">Pastoral</th><th className="p-4">ID / QR</th><th className="p-4 text-right"></th></tr></thead><tbody className="divide-y text-sm">{filtered.map(s => (<tr key={s.id} className="hover:bg-gray-50 group"><td className="p-4 font-medium text-gray-900">{s.name}</td><td className="p-4"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-semibold">{s.pastoral}</span></td><td className="p-4 font-mono text-gray-400 text-xs">{s.qrCodeValue}</td><td className="p-4 text-right flex justify-end gap-2"><button onClick={() => openEdit(s)} className="text-gray-300 hover:text-blue-600 transition"><Edit2 size={16}/></button><button onClick={() => handleDeleteStudent(s.id)} className="text-gray-300 hover:text-red-600 transition"><Trash2 size={16}/></button></td></tr>))}{filtered.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-gray-400">Nenhum aluno encontrado.</td></tr>}</tbody></table></div>
                     </div>
-                    {modal && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl p-6 w-full max-w-sm animate-in shadow-2xl"><h3 className="font-bold text-lg mb-4">{form.id ? 'Editar Aluno' : 'Adicionar Aluno'}</h3><div className="space-y-4"><input className="w-full p-3 border rounded-lg text-sm" placeholder="Nome Completo" value={form.name} onChange={e => setForm({...form, name: e.target.value})} /><select className="w-full p-3 border rounded-lg bg-white text-sm" value={form.pastoral} onChange={e => setForm({...form, pastoral: e.target.value})}>{Object.values(PastoralType).map(p => <option key={p} value={p}>{p}</option>)}</select><input className="w-full p-3 border rounded-lg text-sm bg-gray-50" placeholder="Código do Crachá/QR (Opcional)" value={form.qrCodeValue} onChange={e => setForm({...form, qrCodeValue: e.target.value})} /><p className="text-xs text-gray-400">Se deixar vazio, um código aleatório será gerado.</p><div className="flex justify-end gap-2 mt-4 pt-4 border-t"><button onClick={() => setModal(false)} className="px-4 py-2 text-gray-500 text-sm hover:bg-gray-100 rounded-lg">Cancelar</button><button onClick={() => { handleAddStudent(form); setModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Salvar</button></div></div></div></div>}
+                    {modal && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-xl p-6 w-full max-w-sm animate-in shadow-2xl"><h3 className="font-bold text-lg mb-4">{form.id ? 'Editar Aluno' : 'Adicionar Aluno'}</h3><div className="space-y-4"><input className="w-full p-3 border rounded-lg text-sm" placeholder="Nome Completo" value={form.name} onChange={e => setForm({...form, name: e.target.value})} /><select className="w-full p-3 border rounded-lg bg-white text-sm" value={form.pastoral} onChange={e => setForm({...form, pastoral: e.target.value})}>{Object.values(PastoralType).map(p => <option key={p} value={p}>{p}</option>)}</select><input className="w-full p-3 border rounded-lg text-sm bg-gray-50" placeholder="Código do Crachá/QR (Opcional)" value={form.qrCodeValue} onChange={e => setForm({...form, qrCodeValue: e.target.value})} /><p className="text-xs text-gray-400">Dica: Se o crachá diz "01 FABRICIO", você pode salvar apenas "01" aqui.</p><div className="flex justify-end gap-2 mt-4 pt-4 border-t"><button onClick={() => setModal(false)} className="px-4 py-2 text-gray-500 text-sm hover:bg-gray-100 rounded-lg">Cancelar</button><button onClick={() => { handleAddStudent(form); setModal(false); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Salvar</button></div></div></div></div>}
                 </div>
             );
         };
@@ -406,51 +412,72 @@
 
             const startCamera = async () => {
                 setIsScanning(true);
-                // Pequeno delay para garantir que o elemento #reader existe
+                // Pequeno delay para garantir DOM
                 setTimeout(async () => {
                     try {
                         const html5QrCode = new Html5Qrcode("reader");
                         scannerRef.current = html5QrCode;
+                        
+                        const config = { 
+                            fps: 15, // Mais rápido
+                            qrbox: { width: 250, height: 250 },
+                            aspectRatio: 1.0,
+                            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+                        };
+                        
+                        // Tenta usar a câmera traseira com configurações otimizadas
                         await html5QrCode.start(
                             { facingMode: "environment" },
-                            { fps: 10, qrbox: { width: 250, height: 250 } },
+                            config,
                             (decodedText) => { handleCode(decodedText); },
-                            (errorMessage) => { /* ignora erros de frame vazio */ }
+                            (errorMessage) => { /* ignore frame errors */ }
                         );
+                        
+                        // Tenta aplicar foco contínuo se suportado pelo hardware
+                        try {
+                           const track = html5QrCode.getRunningTrackCameraCapabilities();
+                           // Se precisar acessar recursos avançados de track, seria aqui.
+                           // A API Html5Qrcode já tenta focar automaticamente em browsers modernos.
+                        } catch(e) {}
+                        
                     } catch (err) {
                         console.error(err);
                         setIsScanning(false);
-                        alert("Não foi possível acessar a câmera. Verifique as permissões do navegador ou se o site está usando HTTPS.");
+                        alert("Não foi possível acessar a câmera. Verifique se deu permissão e se está usando HTTPS.");
                     }
                 }, 100);
             };
 
             return (
-                <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-                    <button onClick={handleClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50"><X size={32}/></button>
-                    <div className="bg-white p-6 rounded-2xl w-full max-w-sm text-center animate-in shadow-2xl overflow-hidden relative">
-                        <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${status === 'success' ? 'bg-green-100 text-green-600' : status === 'error' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
-                        <h2 className="text-xl font-bold mb-4 text-gray-800">Registrar Presença</h2>
+                <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
+                    <button onClick={handleClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50 p-2"><X size={32}/></button>
+                    <div className="w-full max-w-md text-center animate-in relative">
+                        <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-colors ${status === 'success' ? 'bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]' : status === 'error' ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.5)]' : 'bg-blue-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.5)]'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
                         
                         {isScanning ? (
-                            <div className="mb-4 relative rounded-xl overflow-hidden bg-black w-full h-64 flex items-center justify-center">
+                            <div className="mb-6 relative rounded-2xl overflow-hidden bg-black w-full aspect-square border-4 border-slate-800 shadow-2xl">
                                 <div id="reader" className="w-full h-full"></div>
-                                <div className="absolute inset-0 border-2 border-blue-500/50 pointer-events-none"></div>
-                                <div className="absolute bottom-2 left-0 w-full text-center text-white text-xs bg-black/50 py-1">Aponte para o QR Code</div>
+                                <div className="absolute inset-0 pointer-events-none">
+                                   <div className="absolute top-0 left-0 w-12 h-12 border-l-4 border-t-4 border-blue-500 rounded-tl-xl"></div>
+                                   <div className="absolute top-0 right-0 w-12 h-12 border-r-4 border-t-4 border-blue-500 rounded-tr-xl"></div>
+                                   <div className="absolute bottom-0 left-0 w-12 h-12 border-l-4 border-b-4 border-blue-500 rounded-bl-xl"></div>
+                                   <div className="absolute bottom-0 right-0 w-12 h-12 border-r-4 border-b-4 border-blue-500 rounded-br-xl"></div>
+                                </div>
+                                <div className="absolute bottom-4 left-0 w-full text-center text-white/80 text-sm font-medium bg-black/40 py-1 backdrop-blur-sm">Aponte para o Crachá</div>
                             </div>
                         ) : (
-                            <button onClick={startCamera} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold mb-6 flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-lg">
-                                <Camera size={20}/> Abrir Câmera
+                            <button onClick={startCamera} className="w-full bg-slate-800 text-white py-5 rounded-2xl font-bold mb-6 flex items-center justify-center gap-3 hover:bg-slate-700 transition-all shadow-lg border border-slate-700">
+                                <Camera size={24}/> Abrir Câmera
                             </button>
                         )}
                         
                         {!isScanning && (
-                            <form onSubmit={submit}>
-                                <div className="relative"><input id="scanInput" value={val} onChange={e => setVal(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl p-3 text-center text-lg mb-4 focus:border-blue-500 outline-none transition-all font-mono" placeholder="DIGITE O CÓDIGO" autoComplete="off"/></div>
-                                <button className="w-full bg-blue-100 text-blue-700 hover:bg-blue-200 py-3 rounded-xl font-bold transition-all">Confirmar Manualmente</button>
+                            <form onSubmit={submit} className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                                <div className="relative"><input id="scanInput" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 rounded-xl p-4 text-center text-lg mb-4 focus:border-blue-500 outline-none transition-all font-mono text-white placeholder-slate-500" placeholder="DIGITE O CÓDIGO" autoComplete="off"/></div>
+                                <button className="w-full bg-blue-600 text-white hover:bg-blue-500 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20">Confirmar Manualmente</button>
                             </form>
                         )}
-                        {msg && <p className={`mt-4 font-bold animate-pulse ${status === 'success' ? 'text-green-600' : 'text-red-600'}`}>{msg}</p>}
+                        {msg && <div className={`mt-6 p-4 rounded-xl font-bold animate-in text-lg ${status === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{msg}</div>}
                     </div>
                 </div>
             );
