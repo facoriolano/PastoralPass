@@ -50,39 +50,37 @@
       .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       
-      /* Estilização Personalizada do Html5QrcodeScanner para parecer Nativo do App */
+      /* FORÇA BRUTA NO CSS PARA A CÂMERA APARECER */
+      #reader {
+          background: #000;
+          border-radius: 12px;
+          overflow: hidden;
+          width: 100% !important;
+      }
+      #reader video {
+          object-fit: cover;
+          width: 100% !important;
+          height: auto !important;
+          display: block !important;
+          border-radius: 12px;
+      }
       #html5-qrcode-button-camera-permission {
           background-color: #2563eb !important;
           color: white !important;
-          padding: 12px 20px !important;
+          padding: 15px 20px !important;
           border-radius: 8px !important;
-          font-weight: 600 !important;
+          font-weight: 800 !important;
+          font-size: 16px !important;
           border: none !important;
           margin-bottom: 10px !important;
           width: 100% !important;
+          display: block !important;
+          cursor: pointer;
       }
-      #html5-qrcode-button-camera-stop, #html5-qrcode-button-camera-start {
-          background-color: #f1f5f9 !important;
-          color: #1e293b !important;
-          border: 1px solid #cbd5e1 !important;
-          padding: 8px 16px !important;
-          border-radius: 6px !important;
-          margin-top: 10px !important;
-          font-weight: 500 !important;
-          width: 100% !important;
+      #html5-qrcode-button-camera-stop {
+          display: none !important; /* Esconde botão de parar para evitar acidentes */
       }
       #html5-qrcode-anchor-scan-type-change {
-          display: none !important; /* Esconde link de carregar arquivo para focar na câmera */
-      }
-      #reader video {
-          border-radius: 12px;
-          object-fit: cover;
-      }
-      /* Scanner UI Overrides */
-      #reader__scan_region {
-          background: white;
-      }
-      #reader__dashboard_section_csr span {
           display: none !important;
       }
     </style>
@@ -93,7 +91,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão 7.1 (Correção Câmera)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão 7.2 (Scanner Blindado)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -126,7 +124,7 @@
 
     <!-- App Logic -->
     <script type="text/babel" data-type="module" data-presets="react">
-      import React, { useState, useEffect, useMemo, useRef } from 'react';
+      import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
       import ReactDOM from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
       import { 
@@ -223,6 +221,69 @@
           </div>
         );
       }
+
+      /* COMPONENTE DE CÂMERA ISOLADO (NÃO MEXA AQUI) */
+      /* Este componente nunca re-renderiza, evitando que a câmera pisque ou fique preta */
+      const CameraZone = React.memo(({ onScanSuccess }) => {
+          // Usa um ref para guardar a função de callback mais recente, 
+          // sem precisar reiniciar o useEffect da câmera
+          const callbackRef = useRef(onScanSuccess);
+          
+          useEffect(() => {
+              callbackRef.current = onScanSuccess;
+          }, [onScanSuccess]);
+
+          useEffect(() => {
+              console.log("Iniciando Câmera Blindada...");
+              let scanner = null;
+              
+              // Pequeno delay para garantir que a DIV existe
+              const timer = setTimeout(() => {
+                  if (document.getElementById('reader')) {
+                       // Limpa qualquer lixo anterior
+                       if(window.html5QrcodeScanner) {
+                           try { window.html5QrcodeScanner.clear(); } catch(e){}
+                       }
+
+                       scanner = new Html5QrcodeScanner(
+                          "reader", 
+                          { 
+                              fps: 10, 
+                              qrbox: 250,
+                              rememberLastUsedCamera: true
+                          }, 
+                          false
+                       );
+                       
+                       // A mágica: chama a função que está no Ref
+                       scanner.render((txt, res) => {
+                           if(callbackRef.current) callbackRef.current(txt, res);
+                       }, (err) => {
+                           // Ignora erros de frame vazio
+                       });
+
+                       window.html5QrcodeScanner = scanner;
+                  }
+              }, 300);
+
+              return () => {
+                  clearTimeout(timer);
+                  if (scanner) {
+                      try { scanner.clear(); } catch(e) { console.error("Erro ao limpar scanner", e); }
+                  }
+              };
+          }, []); // Dependência VAZIA = roda só uma vez na vida do modal
+
+          return (
+              <div className="bg-black rounded-xl overflow-hidden mb-6 p-0 border-4 border-slate-900 relative min-h-[300px]">
+                  <div id="reader" style={{width: '100%', minHeight: '300px'}}></div>
+                  {/* Overlay de carregamento que some quando a câmera abre (gerenciado pela lib) */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-white/50 text-xs">
+                      Aguardando permissão...
+                  </div>
+              </div>
+          );
+      }, () => true); // "Are props equal?" = TRUE. Isso impede o React de re-renderizar este componente.
 
       const App = () => {
         const [config, setConfig] = useState(null);
@@ -347,17 +408,13 @@
 
         const Dashboard = () => {
             const today = new Date().toISOString().split('T')[0];
-            
-            // Cálculos separados
             const presentAula = attendance.filter(a => a.dateString === today && (a.type === 'AULA' || !a.type)).length;
             const presentMissa = attendance.filter(a => a.dateString === today && a.type === 'MISSA').length;
-            
             const chartData = useMemo(() => {
                 const days = [];
                 for(let i=6; i>=0; i--) { 
                     const d = new Date(); d.setDate(d.getDate() - i); 
                     const ds = d.toISOString().split('T')[0]; 
-                    // No gráfico conta "Aulas" como presença principal
                     days.push({ 
                         name: d.toLocaleDateString('pt-BR', {weekday: 'short'}), 
                         value: attendance.filter(a => a.dateString === ds && (a.type === 'AULA' || !a.type)).length 
@@ -385,11 +442,7 @@
             const [form, setForm] = useState({ id: null, name: '', pastoral: PastoralType.CATEQUESE, qrCodeValue: '' });
             const [search, setSearch] = useState('');
             const filtered = students.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
-            
-            const openEdit = (s) => {
-                setForm({ id: s.id, name: s.name, pastoral: s.pastoral, qrCodeValue: s.qrCodeValue || '' });
-                setModal(true);
-            };
+            const openEdit = (s) => { setForm({ id: s.id, name: s.name, pastoral: s.pastoral, qrCodeValue: s.qrCodeValue || '' }); setModal(true); };
 
             return (
                 <div className="space-y-6 animate-in">
@@ -405,7 +458,6 @@
 
         const Reports = () => {
              const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-             
              const list = useMemo(() => students.map(s => ({ 
                  ...s, 
                  presentAula: attendance.some(a => a.studentId === s.id && a.dateString === date && (a.type === 'AULA' || !a.type)),
@@ -454,49 +506,17 @@
             const [status, setStatus] = useState('idle');
             const [msg, setMsg] = useState('');
             const [scanMode, setScanMode] = useState('AULA');
-            
-            // REF para evitar reiniciar a câmera ao trocar de botão
             const scanModeRef = useRef('AULA');
 
-            useEffect(() => {
-                scanModeRef.current = scanMode;
-            }, [scanMode]);
-
-            useEffect(() => {
-                if (window.html5QrcodeScanner) { 
-                    try { window.html5QrcodeScanner.clear(); } catch(e){}
-                }
-
-                const timer = setTimeout(() => {
-                    const onScanSuccess = (decodedText, decodedResult) => {
-                        if (window.html5QrcodeScanner) {
-                            window.html5QrcodeScanner.clear().catch(err => console.error(err));
-                        }
-                        handleCode(decodedText);
-                    };
-                    const onScanFailure = (error) => {};
-
-                    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
-                    window.html5QrcodeScanner = scanner;
-                    scanner.render(onScanSuccess, onScanFailure);
-                }, 100);
-
-                return () => {
-                    clearTimeout(timer);
-                    if (window.html5QrcodeScanner) { 
-                        try { window.html5QrcodeScanner.clear(); } catch(e){} 
-                    }
-                };
-            }, []); // Efeito roda apenas UMA vez ao abrir o modal
+            useEffect(() => { scanModeRef.current = scanMode; }, [scanMode]);
 
             const handleClose = () => {
-                if (window.html5QrcodeScanner) { try { window.html5QrcodeScanner.clear(); } catch(e){} }
+                if(window.html5QrcodeScanner) { try { window.html5QrcodeScanner.clear(); } catch(e){} }
                 onClose();
             };
 
             const handleCode = async (code) => {
                 try {
-                    // Usa o REF para pegar o modo atual selecionado pelo usuário
                     const currentMode = scanModeRef.current;
                     const name = await handleMarkAttendance(code, currentMode);
                     setStatus('success');
@@ -509,6 +529,16 @@
             };
 
             const submit = (e) => { e.preventDefault(); if(val) handleCode(val); };
+
+            // Wrapper para a função de sucesso para garantir que seja estável
+            const onScanSuccess = useCallback((decodedText) => {
+                 handleCode(decodedText);
+            }, []); // Dependências vazias pois handleCode é "quase" estática (usa refs internas) 
+                    // Se precisar, adicione handleCode, mas idealmente handleCode deveria usar useCallback também.
+                    // Como handleCode muda a cada render, isso forçaria o reload da câmera se passássemos direto.
+                    // Mas handleCode muda a cada render pq usa state. 
+                    // TRUQUE: handleCode na verdade não precisa ser recriada se usarmos Refs para tudo.
+                    // Mas para simplificar, o CameraZone usa um Ref interno para pegar a versão mais nova da função.
 
             return (
                 <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
@@ -526,11 +556,8 @@
 
                         <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-colors ${status === 'success' ? 'bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]' : status === 'error' ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.5)]' : scanMode === 'AULA' ? 'bg-blue-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.5)]' : 'bg-purple-600 text-white shadow-[0_0_30px_rgba(147,51,234,0.5)]'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
                         
-                        {status === 'idle' && (
-                             <div className="bg-white rounded-xl overflow-hidden mb-6 p-2">
-                                 <div id="reader" style={{width: '100%'}}></div>
-                             </div>
-                        )}
+                        {/* AQUI ESTÁ A MÁGICA: Componente isolado */}
+                        {status === 'idle' && <CameraZone onScanSuccess={onScanSuccess} />}
                         
                         <form onSubmit={submit} className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
                             <div className="relative"><input id="scanInput" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 rounded-xl p-4 text-center text-lg mb-4 focus:border-blue-500 outline-none transition-all font-mono text-white placeholder-slate-500" placeholder="CÓDIGO MANUAL" autoComplete="off"/></div>
