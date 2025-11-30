@@ -59,6 +59,7 @@
           font-weight: 600 !important;
           border: none !important;
           margin-bottom: 10px !important;
+          width: 100% !important;
       }
       #html5-qrcode-button-camera-stop, #html5-qrcode-button-camera-start {
           background-color: #f1f5f9 !important;
@@ -68,6 +69,7 @@
           border-radius: 6px !important;
           margin-top: 10px !important;
           font-weight: 500 !important;
+          width: 100% !important;
       }
       #html5-qrcode-anchor-scan-type-change {
           display: none !important; /* Esconde link de carregar arquivo para focar na câmera */
@@ -75,6 +77,13 @@
       #reader video {
           border-radius: 12px;
           object-fit: cover;
+      }
+      /* Scanner UI Overrides */
+      #reader__scan_region {
+          background: white;
+      }
+      #reader__dashboard_section_csr span {
+          display: none !important;
       }
     </style>
   </head>
@@ -84,7 +93,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão Estável 6.0 (Auto Scanner)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão 7.0 (Aula & Missa)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -129,14 +138,14 @@
         Home, Users, ClipboardList, PieChart, Github, Scan, X, 
         CheckCircle, AlertTriangle, Plus, Trash2, Search, QrCode,
         UserCheck, UserX, Calendar, Sparkles, ScanLine, Download, 
-        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink, Camera, Loader2, Edit2
+        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink, Camera, Loader2, Edit2, BookOpen, Church
       } from 'lucide-react';
       
       import { 
         BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid 
       } from 'recharts';
 
-      const CONFIG_KEY = 'pastoral_config_v5';
+      const CONFIG_KEY = 'pastoral_config_v7';
 
       const PastoralType = {
         CATEQUESE: "Catequese Infantil",
@@ -283,38 +292,38 @@
 
         const handleDeleteStudent = async (id) => { if(!db || !confirm("Excluir aluno permanentemente?")) return; await deleteDoc(doc(db, 'alunos', id)); };
 
-        const handleMarkAttendance = async (scannedCode) => {
+        const handleMarkAttendance = async (scannedCode, type = 'AULA') => {
           if (!db) return;
           const cleanCode = scannedCode.trim().toLowerCase();
           
-          // Lógica de Busca Melhorada (Fuzzy Search)
           const student = students.find(s => {
               const dbCode = (s.qrCodeValue || '').trim().toLowerCase();
               const studentId = s.id.toLowerCase();
-              
-              // 1. Busca Exata
               if (dbCode === cleanCode || studentId === cleanCode) return true;
-              
-              // 2. Busca Contida (Se o código salvo for "01", aceita "01 FABRICIO...")
-              // Verifica se o código do banco existe e tem pelo menos 2 caracteres para evitar falsos positivos
               if (dbCode.length >= 2 && cleanCode.includes(dbCode)) return true;
-              
               return false;
           });
           
           if (!student) throw new Error(`Aluno não encontrado (Lido: ${scannedCode})`);
           
           const today = new Date().toISOString().split('T')[0];
-          const already = attendance.find(a => a.studentId === student.id && a.dateString === today);
+          // Verifica duplicidade baseada no TIPO (Aula ou Missa)
+          // Se registro antigo não tem tipo, assume que é AULA.
+          const already = attendance.find(a => 
+              a.studentId === student.id && 
+              a.dateString === today && 
+              (a.type === type || (!a.type && type === 'AULA'))
+          );
           
-          if (already) throw new Error(`${student.name} já registrado hoje!`);
+          if (already) throw new Error(`${student.name} já registrado na ${type} hoje!`);
           
           await addDoc(collection(db, 'presencas'), { 
               studentId: student.id, 
               studentName: student.name, 
               pastoral: student.pastoral, 
               timestamp: Date.now(), 
-              dateString: today 
+              dateString: today,
+              type: type // 'AULA' ou 'MISSA'
           });
           return student.name;
         };
@@ -339,10 +348,22 @@
 
         const Dashboard = () => {
             const today = new Date().toISOString().split('T')[0];
-            const presentToday = attendance.filter(a => a.dateString === today).length;
+            
+            // Cálculos separados
+            const presentAula = attendance.filter(a => a.dateString === today && (a.type === 'AULA' || !a.type)).length;
+            const presentMissa = attendance.filter(a => a.dateString === today && a.type === 'MISSA').length;
+            
             const chartData = useMemo(() => {
                 const days = [];
-                for(let i=6; i>=0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toISOString().split('T')[0]; days.push({ name: d.toLocaleDateString('pt-BR', {weekday: 'short'}), value: attendance.filter(a => a.dateString === ds).length }); }
+                for(let i=6; i>=0; i--) { 
+                    const d = new Date(); d.setDate(d.getDate() - i); 
+                    const ds = d.toISOString().split('T')[0]; 
+                    // No gráfico conta "Aulas" como presença principal
+                    days.push({ 
+                        name: d.toLocaleDateString('pt-BR', {weekday: 'short'}), 
+                        value: attendance.filter(a => a.dateString === ds && (a.type === 'AULA' || !a.type)).length 
+                    }); 
+                }
                 return days;
             }, [attendance]);
 
@@ -351,9 +372,9 @@
                     <h2 className="text-2xl font-bold text-gray-800">Painel Geral</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-white p-5 rounded-xl border border-blue-100 shadow-sm"><p className="text-gray-500 text-xs uppercase font-bold">Total Alunos</p><h3 className="text-3xl font-bold text-blue-600 mt-1">{students.length}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border border-green-100 shadow-sm"><p className="text-gray-500 text-xs uppercase font-bold">Presentes Hoje</p><h3 className="text-3xl font-bold text-green-600 mt-1">{presentToday}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border border-red-100 shadow-sm"><p className="text-gray-500 text-xs uppercase font-bold">Faltantes</p><h3 className="text-3xl font-bold text-red-600 mt-1">{Math.max(0, students.length - presentToday)}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border border-purple-100 shadow-sm"><p className="text-gray-500 text-xs uppercase font-bold">Frequência</p><h3 className="text-3xl font-bold text-purple-600 mt-1">{students.length ? Math.round((presentToday/students.length)*100) : 0}%</h3></div>
+                        <div className="bg-white p-5 rounded-xl border border-green-100 shadow-sm"><p className="text-gray-500 text-xs uppercase font-bold">Presença AULA</p><h3 className="text-3xl font-bold text-green-600 mt-1">{presentAula}</h3></div>
+                        <div className="bg-white p-5 rounded-xl border border-purple-100 shadow-sm"><p className="text-gray-500 text-xs uppercase font-bold">Presença MISSA</p><h3 className="text-3xl font-bold text-purple-600 mt-1">{presentMissa}</h3></div>
+                        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm"><p className="text-gray-500 text-xs uppercase font-bold">Frequência (Aula)</p><h3 className="text-3xl font-bold text-gray-600 mt-1">{students.length ? Math.round((presentAula/students.length)*100) : 0}%</h3></div>
                     </div>
                     <div className="bg-white p-6 rounded-xl border shadow-sm h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6"/><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill:'#9ca3af', fontSize:12}}/><Tooltip cursor={{fill: '#f9fafb'}} contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 4px 6px -1px rgb(0 0 0 / 0.1)'}}/><Bar dataKey="value" fill="#3b82f6" radius={[4,4,0,0]} barSize={40}/></BarChart></ResponsiveContainer></div>
                 </div>
@@ -385,13 +406,48 @@
 
         const Reports = () => {
              const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-             const list = useMemo(() => students.map(s => ({ ...s, present: attendance.some(a => a.studentId === s.id && a.dateString === date) })), [students, attendance, date]);
-             const exportCsv = () => { const csv = "data:text/csv;charset=utf-8," + ["Nome,Pastoral,Status", ...list.map(l => `${l.name},${l.pastoral},${l.present ? 'PRESENTE' : 'FALTA'}`)].join('\n'); const link = document.createElement("a"); link.href = encodeURI(csv); link.download = `relatorio_${date}.csv`; link.click(); };
+             
+             const list = useMemo(() => students.map(s => ({ 
+                 ...s, 
+                 // Verifica se tem presença na data E se o tipo é Aula (ou nulo)
+                 presentAula: attendance.some(a => a.studentId === s.id && a.dateString === date && (a.type === 'AULA' || !a.type)),
+                 // Verifica se tem presença na data E se o tipo é Missa
+                 presentMissa: attendance.some(a => a.studentId === s.id && a.dateString === date && a.type === 'MISSA')
+             })), [students, attendance, date]);
+
+             const exportCsv = () => { 
+                 const csv = "data:text/csv;charset=utf-8," + ["Nome,Pastoral,Aula,Missa", ...list.map(l => `${l.name},${l.pastoral},${l.presentAula ? 'SIM' : 'NAO'},${l.presentMissa ? 'SIM' : 'NAO'}`)].join('\n'); 
+                 const link = document.createElement("a"); 
+                 link.href = encodeURI(csv); 
+                 link.download = `relatorio_${date}.csv`; 
+                 link.click(); 
+             };
+
              return (
                 <div className="space-y-6 animate-in">
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Relatórios</h2><button onClick={exportCsv} className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex gap-2 hover:bg-emerald-700 text-sm font-medium"><Download size={18}/> CSV</button></div>
                     <div className="bg-white p-4 rounded-xl border shadow-sm flex gap-3 items-center w-full md:w-auto self-start"><Calendar className="text-gray-400" size={20}/><input type="date" value={date} onChange={e => setDate(e.target.value)} className="outline-none text-gray-700 font-medium bg-transparent"/></div>
-                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden"><table className="w-full text-left"><thead className="bg-gray-50 text-gray-600 text-xs uppercase font-bold"><tr><th className="p-4">Aluno</th><th className="p-4">Status</th></tr></thead><tbody className="divide-y text-sm">{list.map(l => (<tr key={l.id}><td className="p-4">{l.name}</td><td className="p-4">{l.present ? <span className="text-emerald-600 flex items-center gap-1 font-bold"><Check size={16}/> Presente</span> : <span className="text-red-400 flex items-center gap-1"><XIcon size={16}/> Falta</span>}</td></tr>))}{list.length === 0 && <tr><td colSpan="2" className="p-8 text-center text-gray-400">Sem dados para esta data.</td></tr>}</tbody></table></div>
+                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-bold">
+                                <tr>
+                                    <th className="p-4">Aluno</th>
+                                    <th className="p-4">Aula</th>
+                                    <th className="p-4">Missa</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y text-sm">
+                                {list.map(l => (
+                                    <tr key={l.id}>
+                                        <td className="p-4 font-medium">{l.name}</td>
+                                        <td className="p-4">{l.presentAula ? <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">PRESENTE</span> : <span className="text-gray-300">-</span>}</td>
+                                        <td className="p-4">{l.presentMissa ? <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">PRESENTE</span> : <span className="text-gray-300">-</span>}</td>
+                                    </tr>
+                                ))}
+                                {list.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-gray-400">Sem dados para esta data.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
              );
         };
@@ -400,62 +456,44 @@
             const [val, setVal] = useState('');
             const [status, setStatus] = useState('idle');
             const [msg, setMsg] = useState('');
+            // Estado para o modo de leitura
+            const [scanMode, setScanMode] = useState('AULA'); // 'AULA' | 'MISSA'
             
-            // Effect para iniciar o Html5QrcodeScanner assim que o componente montar
             useEffect(() => {
-                // Aguarda um pouco para o DOM renderizar a div 'reader'
                 const timer = setTimeout(() => {
                     const onScanSuccess = (decodedText, decodedResult) => {
-                        // Limpa o scanner para evitar múltiplas leituras
                         if (window.html5QrcodeScanner) {
                             window.html5QrcodeScanner.clear().catch(err => console.error(err));
                         }
                         handleCode(decodedText);
                     };
+                    const onScanFailure = (error) => {};
 
-                    const onScanFailure = (error) => {
-                        // console.warn(`Code scan error = ${error}`);
-                    };
-
-                    // Configuração igual ao snippet do usuário (automático)
-                    window.html5QrcodeScanner = new Html5QrcodeScanner(
-                        "reader",
-                        { fps: 10, qrbox: 250 },
-                        /* verbose= */ false
-                    );
+                    window.html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
                     window.html5QrcodeScanner.render(onScanSuccess, onScanFailure);
                 }, 100);
 
-                // Cleanup
                 return () => {
                     clearTimeout(timer);
-                    if (window.html5QrcodeScanner) {
-                        try { window.html5QrcodeScanner.clear(); } catch(e){}
-                    }
+                    if (window.html5QrcodeScanner) { try { window.html5QrcodeScanner.clear(); } catch(e){} }
                 };
-            }, []);
+            }, [scanMode]); // Re-render scanner se mudar o modo? Não necessariamente, mas limpa o estado.
 
             const handleClose = () => {
-                if (window.html5QrcodeScanner) {
-                    try { window.html5QrcodeScanner.clear(); } catch(e){}
-                }
+                if (window.html5QrcodeScanner) { try { window.html5QrcodeScanner.clear(); } catch(e){} }
                 onClose();
             };
 
             const handleCode = async (code) => {
                 try {
-                    const name = await handleMarkAttendance(code);
+                    // Passa o scanMode atual para a função de presença
+                    const name = await handleMarkAttendance(code, scanMode);
                     setStatus('success');
                     setMsg(name);
-                    // Fecha após 1.5s
                     setTimeout(() => { setStatus('idle'); setVal(''); setMsg(''); handleClose(); }, 1500);
                 } catch (err) {
                     setStatus('error');
                     setMsg(err.message);
-                    // Em caso de erro, reiniciamos o scanner após 2s? 
-                    // Melhor fechar e deixar o usuário tentar de novo ou apenas limpar mensagem.
-                    // Para o scanner automático, o 'clear' já foi chamado. Teríamos que recriar o objeto se quiséssemos continuar.
-                    // Vamos deixar o usuário clicar em fechar ou tentar o manual.
                 }
             };
 
@@ -464,10 +502,20 @@
             return (
                 <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
                     <button onClick={handleClose} className="absolute top-6 right-6 text-white/50 hover:text-white z-50 p-2"><X size={32}/></button>
-                    <div className="w-full max-w-md text-center animate-in relative">
-                        <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-colors ${status === 'success' ? 'bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]' : status === 'error' ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.5)]' : 'bg-blue-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.5)]'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
+                    <div className="w-full max-w-md text-center animate-in relative flex flex-col max-h-screen overflow-y-auto">
                         
-                        {/* Container para o Scanner Automático */}
+                        {/* Seletor de Modo */}
+                        <div className="flex bg-slate-800 p-1 rounded-xl mb-4">
+                            <button onClick={() => setScanMode('AULA')} className={`flex-1 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${scanMode === 'AULA' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                                <BookOpen size={18}/> AULA
+                            </button>
+                            <button onClick={() => setScanMode('MISSA')} className={`flex-1 py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${scanMode === 'MISSA' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                                <Church size={18}/> MISSA
+                            </button>
+                        </div>
+
+                        <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-colors ${status === 'success' ? 'bg-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.5)]' : status === 'error' ? 'bg-red-500 text-white shadow-[0_0_30px_rgba(239,68,68,0.5)]' : scanMode === 'AULA' ? 'bg-blue-600 text-white shadow-[0_0_30px_rgba(37,99,235,0.5)]' : 'bg-purple-600 text-white shadow-[0_0_30px_rgba(147,51,234,0.5)]'}`}>{status === 'success' ? <CheckCircle size={32}/> : status === 'error' ? <AlertTriangle size={32}/> : <QrCode size={32}/>}</div>
+                        
                         {status === 'idle' && (
                              <div className="bg-white rounded-xl overflow-hidden mb-6 p-2">
                                  <div id="reader" style={{width: '100%'}}></div>
@@ -476,7 +524,7 @@
                         
                         <form onSubmit={submit} className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
                             <div className="relative"><input id="scanInput" value={val} onChange={e => setVal(e.target.value)} className="w-full bg-slate-800 border-2 border-slate-700 rounded-xl p-4 text-center text-lg mb-4 focus:border-blue-500 outline-none transition-all font-mono text-white placeholder-slate-500" placeholder="CÓDIGO MANUAL" autoComplete="off"/></div>
-                            <button className="w-full bg-blue-600 text-white hover:bg-blue-500 py-3 rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20">Confirmar</button>
+                            <button className={`w-full text-white py-3 rounded-xl font-bold transition-all shadow-lg ${scanMode === 'AULA' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20' : 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20'}`}>Confirmar {scanMode}</button>
                         </form>
                         
                         {msg && <div className={`mt-6 p-4 rounded-xl font-bold animate-in text-lg ${status === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{msg}</div>}
