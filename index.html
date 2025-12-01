@@ -71,7 +71,7 @@
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
         <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão 7.4 (Scanner Limpo)</p>
+        <p class="text-xs mt-2 text-gray-400">Versão 7.5 (Prontuário do Aluno)</p>
         
         <button id="reset-btn" onclick="localStorage.clear(); window.location.reload()" style="display:none" class="mt-8 text-xs text-red-500 underline cursor-pointer">
            Demorando muito? Clique para resetar
@@ -116,7 +116,7 @@
         Home, Users, ClipboardList, PieChart, Github, Scan, X, 
         CheckCircle, AlertTriangle, Plus, Trash2, Search, QrCode,
         UserCheck, UserX, Calendar, Sparkles, ScanLine, Download, 
-        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink, Camera, Loader2, Edit2, BookOpen, Church
+        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink, Camera, Loader2, Edit2, BookOpen, Church, Clock
       } from 'lucide-react';
       
       import { 
@@ -202,7 +202,7 @@
         );
       }
 
-      /* COMPONENTE DE CÂMERA ISOLADO (SEM UI DE SELEÇÃO) */
+      /* COMPONENTE DE CÂMERA ISOLADO */
       const CameraZone = React.memo(({ onScanSuccess }) => {
           const callbackRef = useRef(onScanSuccess);
           
@@ -216,20 +216,15 @@
               
               const timer = setTimeout(() => {
                   if (document.getElementById('reader')) {
-                       // Usa a classe Html5Qrcode diretamente
                        html5QrCode = new Html5Qrcode("reader");
-                       
                        const config = { fps: 15, qrbox: 250 };
-                       
                        html5QrCode.start(
                            { facingMode: "environment" }, 
                            config,
                            (decodedText, decodedResult) => {
                                if(callbackRef.current) callbackRef.current(decodedText, decodedResult);
                            },
-                           (errorMessage) => {
-                               // erros de leitura (frame sem qr code) são ignorados
-                           }
+                           (errorMessage) => {}
                        ).catch((err) => {
                            console.error("Erro ao iniciar câmera", err);
                            const reader = document.getElementById('reader');
@@ -241,9 +236,7 @@
               return () => {
                   clearTimeout(timer);
                   if (html5QrCode) {
-                      html5QrCode.stop().then(() => {
-                          html5QrCode.clear();
-                      }).catch(err => console.error("Erro ao parar", err));
+                      html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(err => console.error("Erro ao parar", err));
                   }
               };
           }, []);
@@ -252,14 +245,115 @@
               <div className="bg-black rounded-xl overflow-hidden mb-6 p-0 border-4 border-slate-900 relative min-h-[400px]">
                   <div id="reader" style={{width: '100%', minHeight: '400px', background: 'black'}}></div>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-white/50 text-xs">
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="animate-spin" />
-                        Acessando câmera...
-                      </div>
+                      <div className="flex flex-col items-center gap-2"><Loader2 className="animate-spin" />Acessando câmera...</div>
                   </div>
               </div>
           );
       }, () => true);
+
+      /* MODAL DE HISTÓRICO COMPLETO DO ALUNO */
+      const StudentHistoryModal = ({ student, allAttendance, onClose }) => {
+          const history = useMemo(() => {
+              return allAttendance
+                  .filter(a => a.studentId === student.id)
+                  .sort((a, b) => b.timestamp - a.timestamp);
+          }, [student, allAttendance]);
+
+          const stats = useMemo(() => {
+              const totalAula = history.filter(a => a.type === 'AULA' || !a.type).length;
+              const totalMissa = history.filter(a => a.type === 'MISSA').length;
+              
+              // Agrupamento por mês
+              const byMonth = {};
+              history.forEach(h => {
+                  // data formato YYYY-MM-DD
+                  const [y, m] = h.dateString.split('-'); 
+                  const key = `${m}/${y}`;
+                  if(!byMonth[key]) byMonth[key] = { aula: 0, missa: 0, name: new Date(h.dateString + 'T12:00:00').toLocaleDateString('pt-BR', {month: 'long', year: 'numeric'}) };
+                  if(h.type === 'MISSA') byMonth[key].missa++;
+                  else byMonth[key].aula++;
+              });
+
+              return { totalAula, totalMissa, byMonth };
+          }, [history]);
+
+          return (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+                  <div className="bg-white w-full md:max-w-2xl md:rounded-2xl rounded-t-2xl h-[90vh] md:h-auto md:max-h-[90vh] flex flex-col shadow-2xl animate-in">
+                      {/* Header */}
+                      <div className="p-6 border-b flex justify-between items-start bg-slate-50 rounded-t-2xl">
+                          <div>
+                              <h2 className="text-2xl font-bold text-gray-800">{student.name}</h2>
+                              <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold uppercase mt-1 inline-block">{student.pastoral}</span>
+                              <p className="text-xs text-gray-500 mt-1 font-mono">ID: {student.qrCodeValue}</p>
+                          </div>
+                          <button onClick={onClose} className="bg-gray-200 hover:bg-gray-300 p-2 rounded-full transition"><X size={20}/></button>
+                      </div>
+
+                      <div className="overflow-y-auto p-6 space-y-6">
+                          {/* Cards Resumo */}
+                          <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                  <div className="flex items-center gap-2 text-blue-600 mb-1"><BookOpen size={16}/><span className="text-xs font-bold uppercase">Aulas</span></div>
+                                  <span className="text-3xl font-bold text-blue-800">{stats.totalAula}</span>
+                              </div>
+                              <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                                  <div className="flex items-center gap-2 text-purple-600 mb-1"><Church size={16}/><span className="text-xs font-bold uppercase">Missas</span></div>
+                                  <span className="text-3xl font-bold text-purple-800">{stats.totalMissa}</span>
+                              </div>
+                          </div>
+
+                          {/* Frequência Mensal */}
+                          <div>
+                              <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Calendar size={18}/> Frequência Mensal</h3>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                  {Object.values(stats.byMonth).map((m, i) => (
+                                      <div key={i} className="border rounded-lg p-3 text-sm">
+                                          <div className="font-bold text-gray-800 capitalize mb-1">{m.name}</div>
+                                          <div className="flex justify-between text-xs">
+                                              <span className="text-blue-600">A: {m.aula}</span>
+                                              <span className="text-purple-600">M: {m.missa}</span>
+                                          </div>
+                                      </div>
+                                  ))}
+                                  {Object.keys(stats.byMonth).length === 0 && <p className="text-gray-400 text-sm col-span-2">Sem registros ainda.</p>}
+                              </div>
+                          </div>
+
+                          {/* Histórico Detalhado */}
+                          <div>
+                              <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Clock size={18}/> Histórico Completo</h3>
+                              <div className="border rounded-xl overflow-hidden">
+                                  <table className="w-full text-left text-sm">
+                                      <thead className="bg-gray-50 text-gray-500 font-bold text-xs uppercase">
+                                          <tr><th className="p-3">Data</th><th className="p-3">Tipo</th><th className="p-3 text-right">Dia</th></tr>
+                                      </thead>
+                                      <tbody className="divide-y">
+                                          {history.map(h => {
+                                              const d = new Date(h.dateString + 'T12:00:00');
+                                              return (
+                                                  <tr key={h.id} className="hover:bg-gray-50">
+                                                      <td className="p-3">{d.toLocaleDateString('pt-BR')}</td>
+                                                      <td className="p-3">
+                                                          {h.type === 'MISSA' 
+                                                              ? <span className="text-purple-700 bg-purple-50 px-2 py-0.5 rounded text-xs font-bold">MISSA</span>
+                                                              : <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-xs font-bold">AULA</span>
+                                                          }
+                                                      </td>
+                                                      <td className="p-3 text-right text-gray-400 text-xs capitalize">{d.toLocaleDateString('pt-BR', {weekday: 'short'})}</td>
+                                                  </tr>
+                                              );
+                                          })}
+                                          {history.length === 0 && <tr><td colSpan="3" className="p-4 text-center text-gray-400">Nenhum registro encontrado.</td></tr>}
+                                      </tbody>
+                                  </table>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          );
+      };
 
       const App = () => {
         const [config, setConfig] = useState(null);
@@ -436,6 +530,8 @@
 
         const Reports = () => {
              const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+             const [selectedStudent, setSelectedStudent] = useState(null); // Estado para o modal
+             
              const list = useMemo(() => students.map(s => ({ 
                  ...s, 
                  presentAula: attendance.some(a => a.studentId === s.id && a.dateString === date && (a.type === 'AULA' || !a.type)),
@@ -454,6 +550,7 @@
                 <div className="space-y-6 animate-in">
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-gray-800">Relatórios</h2><button onClick={exportCsv} className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex gap-2 hover:bg-emerald-700 text-sm font-medium"><Download size={18}/> CSV</button></div>
                     <div className="bg-white p-4 rounded-xl border shadow-sm flex gap-3 items-center w-full md:w-auto self-start"><Calendar className="text-gray-400" size={20}/><input type="date" value={date} onChange={e => setDate(e.target.value)} className="outline-none text-gray-700 font-medium bg-transparent"/></div>
+                    
                     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
                         <table className="w-full text-left">
                             <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-bold">
@@ -466,7 +563,12 @@
                             <tbody className="divide-y text-sm">
                                 {list.map(l => (
                                     <tr key={l.id}>
-                                        <td className="p-4 font-medium">{l.name}</td>
+                                        <td 
+                                            className="p-4 font-medium text-blue-600 hover:text-blue-800 cursor-pointer hover:underline"
+                                            onClick={() => setSelectedStudent(l)}
+                                        >
+                                            {l.name}
+                                        </td>
                                         <td className="p-4">{l.presentAula ? <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">PRESENTE</span> : <span className="text-gray-300">-</span>}</td>
                                         <td className="p-4">{l.presentMissa ? <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">PRESENTE</span> : <span className="text-gray-300">-</span>}</td>
                                     </tr>
@@ -475,6 +577,15 @@
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Modal de Detalhes do Aluno */}
+                    {selectedStudent && (
+                        <StudentHistoryModal 
+                            student={selectedStudent} 
+                            allAttendance={attendance} 
+                            onClose={() => setSelectedStudent(null)} 
+                        />
+                    )}
                 </div>
              );
         };
