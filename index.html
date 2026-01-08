@@ -154,27 +154,30 @@
 
         const handleSaveConfig = (rawText) => {
             try {
-                // Tenta encontrar o objeto { ... } dentro do texto colado
-                const match = rawText.match(/\{[\s\S]*\}/);
-                if (!match) throw new Error("Objeto não encontrado");
+                // Encontra o bloco entre chaves { ... }
+                const start = rawText.indexOf('{');
+                const end = rawText.lastIndexOf('}');
                 
-                let jsonStr = match[0];
+                if (start === -1 || end === -1) {
+                    throw new Error("Não foi possível encontrar o bloco de configuração (chaves { }).");
+                }
                 
-                // Limpeza para tornar o JS do console em JSON válido
-                // 1. Garante aspas duplas em volta das chaves (keys)
-                jsonStr = jsonStr.replace(/(\w+):/g, '"$1":');
-                // 2. Garante aspas duplas em volta dos valores de string (substitui simples por duplas se houver)
-                jsonStr = jsonStr.replace(/'/g, '"');
-                // 3. Remove vírgulas extras no final antes de fechar a chave (trailing commas)
-                jsonStr = jsonStr.replace(/,(\s*[\}\]])/g, '$1');
+                const objStr = rawText.substring(start, end + 1);
+                
+                // Usa o construtor Function para avaliar a string como um objeto literal JS
+                // Isso resolve o problema de chaves sem aspas e colons dentro das strings
+                const firebaseConf = new Function(`return (${objStr})`)();
+                
+                if (!firebaseConf || typeof firebaseConf !== 'object' || !firebaseConf.apiKey) {
+                    throw new Error("O objeto extraído não parece ser uma configuração válida do Firebase.");
+                }
 
-                const firebaseConf = JSON.parse(jsonStr);
                 const fullConfig = { firebase: firebaseConf };
                 localStorage.setItem(CONFIG_KEY, JSON.stringify(fullConfig));
                 initializeFirebase(fullConfig);
             } catch(e) {
-                console.error(e);
-                alert("Falha ao processar o código. Certifique-se de copiar o bloco inteiro que começa com '{' e termina com '}'.");
+                console.error("Erro no processamento:", e);
+                alert("Falha ao ler configuração: " + (e.message || "Verifique se copiou o código corretamente."));
             }
         };
 
@@ -201,7 +204,7 @@
                         <div className="text-center space-y-4">
                             <div className="bg-blue-600 w-20 h-20 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/20"><Database className="text-white" size={40}/></div>
                             <h1 className="text-white font-black text-3xl tracking-tighter">Configuração Inicial</h1>
-                            <p className="text-slate-500 text-sm font-medium">Pode colar o código completo do Firebase abaixo. O sistema vai extrair os dados automaticamente.</p>
+                            <p className="text-slate-500 text-sm font-medium">Copie e cole aqui o bloco 'const firebaseConfig' completo do seu console.</p>
                         </div>
                         <div className="bg-slate-900/50 p-2 rounded-[32px] border border-white/5 backdrop-blur-xl">
                             <textarea 
