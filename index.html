@@ -4,28 +4,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-    <title>PastoralPass - Cloud</title>
+    <title>PastoralPass - Ultra Fast</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- HTML5-QRCode (Leitor de Câmera) -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-    <!-- Polyfill para evitar erros de ambiente -->
-    <script>
-      window.process = { env: { NODE_ENV: 'production' } };
-    </script>
+    <script>window.process = { env: { NODE_ENV: 'production' } };</script>
 
-    <!-- Import Map -->
     <script type="importmap">
     {
       "imports": {
@@ -41,137 +30,38 @@
     </script>
     
     <style>
-      body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+      body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      .animate-in { animation: fadeIn 0.4s ease-out; }
-      ::-webkit-scrollbar { width: 6px; height: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+      .animate-in { animation: fadeIn 0.3s ease-out; }
       
-      .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+      .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       
-      #reader {
-          width: 100%;
-          border-radius: 12px;
-          overflow: hidden;
-          background: black;
-      }
-      #reader video {
-          width: 100% !important;
-          height: 100% !important;
-          object-fit: cover;
-          border-radius: 12px;
-      }
+      #reader { width: 100%; border-radius: 0; overflow: hidden; background: black; }
+      #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+      
+      .scan-success-flash { animation: flashGreen 0.6s ease-out; }
+      @keyframes flashGreen { 0% { box-shadow: inset 0 0 100px rgba(34, 197, 94, 0.8); } 100% { box-shadow: inset 0 0 0px rgba(34, 197, 94, 0); } }
     </style>
   </head>
   <body>
     <div id="root">
       <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
         <div class="loader mb-4"></div>
-        <p>Iniciando Sistema...</p>
-        <p class="text-xs mt-2 text-gray-400">Versão 7.8 (Conexão Verificada)</p>
+        <p>Carregando PastoralPass...</p>
       </div>
-    </div>
-    
-    <div id="error-display" style="display:none; padding: 20px; color: white; background: #ef4444; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; overflow:auto;">
-      <h2 style="font-weight: bold; font-size: 1.5rem; margin-bottom: 20px;">Ops! Erro Crítico.</h2>
-      <pre id="error-message" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; font-size: 0.8rem;"></pre>
-      <button onclick="localStorage.clear(); window.location.reload()" style="margin-top: 20px; padding: 12px 24px; background: white; color: #ef4444; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%;">
-        Resetar Aplicativo
-      </button>
     </div>
 
     <script type="text/babel" data-type="module" data-presets="react">
-      import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+      import React, { useState, useEffect, useMemo, useRef } from 'react';
       import ReactDOM from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
-      import { 
-        getFirestore, collection, addDoc, deleteDoc, doc, updateDoc,
-        query, where, onSnapshot, orderBy, serverTimestamp 
-      } from 'firebase/firestore';
-      
-      import { 
-        Home, Users, ClipboardList, PieChart, Github, Scan, X, 
-        CheckCircle, AlertTriangle, Plus, Trash2, Search, QrCode,
-        UserCheck, UserX, Calendar, Sparkles, ScanLine, Download, 
-        Check, X as XIcon, Settings, Database, Key, HelpCircle, ArrowRight, ExternalLink, Camera, Loader2, Edit2, BookOpen, Church, Clock, Copy, Lock, ShieldCheck
-      } from 'lucide-react';
-      
-      import { 
-        BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid 
-      } from 'recharts';
+      import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, query, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
+      import { Home, Users, ClipboardList, Scan, X, CheckCircle, AlertTriangle, Plus, Search, ScanLine, Settings, Database, ArrowRight, Edit2, BookOpen, Church, Lock, ShieldCheck, History } from 'lucide-react';
+      import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
       const CONFIG_KEY = 'pastoral_config_v7';
-
-      const PastoralType = {
-        CATEQUESE: "Catequese Infantil",
-        CRISMA: "Crisma",
-        EUCARISTIA: "Eucaristia",
-        JOVENS: "Grupo de Jovens",
-        OUTROS: "Outros"
-      };
-
-      const PermissionErrorModal = () => (
-          <div className="fixed inset-0 bg-slate-900/95 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
-              <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl animate-in text-center">
-                  <div className="bg-red-100 p-4 rounded-full text-red-600 mb-4 inline-block"><Lock size={40} /></div>
-                  <h2 className="text-2xl font-bold text-gray-800">Acesso Bloqueado</h2>
-                  <p className="text-gray-500 mt-2 mb-6 text-sm">As regras do seu Firebase Firestore estão impedindo a leitura dos dados.</p>
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-left text-xs mb-6 space-y-2">
-                      <p><strong>Como corrigir:</strong></p>
-                      <p>1. Vá no console do Firebase > Firestore Database.</p>
-                      <p>2. Clique na aba <strong>Regras (Rules)</strong>.</p>
-                      <p>3. Altere a regra para: <code className="bg-slate-800 text-green-400 px-1">allow read, write: if true;</code></p>
-                  </div>
-                  <a href="https://console.firebase.google.com/" target="_blank" className="bg-blue-600 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 mb-4">Abrir Console Firebase <ExternalLink size={18}/></a>
-                  <button onClick={() => window.location.reload()} className="text-gray-400 text-xs underline">Já alterei as regras, recarregar app</button>
-              </div>
-          </div>
-      );
-
-      const SetupScreen = () => {
-        const [apiKey, setApiKey] = useState('');
-        const [fbConfig, setFbConfig] = useState('');
-        const [error, setError] = useState('');
-        
-        const handleSave = () => {
-          try {
-            let configStr = fbConfig.trim();
-            configStr = configStr.replace(/\/\/.*$/gm, '');
-            if (configStr.includes('firebaseConfig')) {
-                const match = configStr.match(/firebaseConfig\s*=\s*({[\s\S]*?});?/);
-                if (match) configStr = match[1];
-            }
-            let parsed;
-            try { parsed = new Function('return ' + configStr)(); } 
-            catch (e) { parsed = new Function('return {' + configStr + '}')(); }
-            
-            if (!parsed || !parsed.projectId) throw new Error("Incompleto");
-
-            localStorage.setItem(CONFIG_KEY, JSON.stringify({ geminiKey: apiKey, firebase: parsed }));
-            window.location.reload(); 
-          } catch (e) {
-            setError("Erro ao ler código. Certifique-se de copiar o bloco corretamente.");
-          }
-        };
-
-        return (
-          <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-900 to-slate-900">
-            <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-in">
-              <div className="flex items-center gap-3 mb-6 border-b pb-4">
-                <div className="p-3 bg-blue-100 rounded-lg text-blue-700"><Database size={24}/></div>
-                <h1 className="text-xl font-bold text-gray-800">Configurar PastoralPass</h1>
-              </div>
-              <p className="text-xs text-gray-500 mb-4">Cole abaixo o objeto `firebaseConfig` que você obteve no console do Firebase.</p>
-              <textarea value={fbConfig} onChange={e => setFbConfig(e.target.value)} placeholder='Ex: { apiKey: "...", authDomain: "...", projectId: "..." }' className="w-full h-40 p-3 border rounded-lg text-xs font-mono bg-gray-900 text-green-400 outline-none resize-none mb-4 shadow-inner"></textarea>
-              <input type="text" value={apiKey} onChange={e => setApiKey(e.target.value)} className="w-full p-3 border rounded-lg text-sm bg-gray-50 mb-6" placeholder="Gemini API Key (Opcional)"/>
-              <button onClick={handleSave} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl flex justify-center items-center gap-2 hover:bg-blue-700 transition shadow-lg">Salvar e Conectar <ArrowRight size={18}/></button>
-              {error && <p className="text-red-500 text-xs mt-3 text-center bg-red-50 p-2 rounded">{error}</p>}
-            </div>
-          </div>
-        );
-      }
+      const PastoralType = { CATEQUESE: "Catequese Infantil", CRISMA: "Crisma", EUCARISTIA: "Eucaristia", JOVENS: "Grupo de Jovens", OUTROS: "Outros" };
 
       const CameraZone = React.memo(({ onScanSuccess }) => {
           const callbackRef = useRef(onScanSuccess);
@@ -180,25 +70,25 @@
           useEffect(() => {
               let html5QrCode = null;
               const timer = setTimeout(() => {
-                  if (document.getElementById('reader')) {
+                  const element = document.getElementById('reader');
+                  if (element) {
                        html5QrCode = new Html5Qrcode("reader");
-                       html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (text) => callbackRef.current(text)).catch(e => console.error(e));
+                       html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, (text) => callbackRef.current(text)).catch(e => console.error(e));
                   }
               }, 300);
               return () => { clearTimeout(timer); if(html5QrCode) html5QrCode.stop().then(() => html5QrCode.clear()).catch(()=>{}); };
           }, []);
 
-          return <div id="reader" className="min-h-[400px] bg-black"></div>;
+          return <div id="reader" className="w-full h-full min-h-[50vh]"></div>;
       });
 
       const App = () => {
         const [config, setConfig] = useState(null);
         const [db, setDb] = useState(null);
-        const [dbStatus, setDbStatus] = useState('connecting'); // connecting, online, error
+        const [dbStatus, setDbStatus] = useState('connecting');
         const [activeTab, setActiveTab] = useState('dashboard');
         const [sidebarOpen, setSidebarOpen] = useState(false);
         const [scannerOpen, setScannerOpen] = useState(false);
-        const [modeSelectionOpen, setModeSelectionOpen] = useState(false);
         const [selectedScanMode, setSelectedScanMode] = useState('AULA');
         const [students, setStudents] = useState([]);
         const [attendance, setAttendance] = useState([]);
@@ -219,88 +109,123 @@
               const firestore = getFirestore(firebaseApp);
               setDb(firestore);
 
-              const handleError = (error) => {
-                  console.error("Firebase error:", error);
-                  setDbStatus('error');
-                  if (error.code === 'permission-denied') setPermissionDenied(true);
-              };
-
               const unsubStudents = onSnapshot(collection(firestore, 'alunos'), (snap) => {
                   setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
                   setDbStatus('online');
-              }, handleError);
+              }, (err) => { if(err.code === 'permission-denied') setPermissionDenied(true); });
 
               const unsubAttendance = onSnapshot(query(collection(firestore, 'presencas'), orderBy('timestamp', 'desc')), (snap) => {
                   setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-              }, handleError);
+              });
 
               return () => { unsubStudents(); unsubAttendance(); };
-            } catch(e) { console.error(e); setDbStatus('error'); }
+            } catch(e) { console.error(e); }
           }
         }, []);
 
-        const handleMarkAttendance = async (scannedCode, type = 'AULA') => {
-          if (!db) return;
+        const handleMarkAttendance = async (scannedCode, type) => {
           const cleanCode = scannedCode.trim().toLowerCase();
-          const student = students.find(s => {
-              const dbCode = (s.qrCodeValue || '').trim().toLowerCase();
-              return dbCode === cleanCode || s.id.toLowerCase() === cleanCode || (dbCode.length >= 2 && cleanCode.includes(dbCode));
-          });
-          
-          if (!student) throw new Error(`Aluno não encontrado (${scannedCode})`);
-          
+          const student = students.find(s => (s.qrCodeValue || '').trim().toLowerCase() === cleanCode || s.id.toLowerCase() === cleanCode);
+          if (!student) throw new Error(`Não encontrado: ${scannedCode}`);
           const today = formatDateLocal(new Date());
           const already = attendance.find(a => a.studentId === student.id && a.dateString === today && (a.type === type || (!a.type && type === 'AULA')));
+          if (already) throw new Error(`${student.name} já registrado hoje!`);
           
-          if (already) throw new Error(`${student.name} já registrado na ${type} hoje!`);
-          
-          await addDoc(collection(db, 'presencas'), { 
-              studentId: student.id, 
-              studentName: student.name, 
-              pastoral: student.pastoral, 
-              timestamp: Date.now(), 
-              dateString: today,
-              type: type
-          });
+          await addDoc(collection(db, 'presencas'), { studentId: student.id, studentName: student.name, pastoral: student.pastoral, timestamp: Date.now(), dateString: today, type: type });
           return student.name;
         };
 
-        if (permissionDenied) return <PermissionErrorModal />;
-        if (!config) return <SetupScreen />;
-        if (!db) return <div className="h-screen flex items-center justify-center text-blue-600 font-bold flex-col gap-4 bg-gray-50"><div className="loader"></div><p className="animate-pulse">Conectando ao Firestore...</p></div>;
+        if (permissionDenied) return <div className="p-8 text-center"><Lock size={48} className="mx-auto mb-4 text-red-500"/> <h2 className="font-bold">Acesso Negado</h2><p>Verifique as regras do Firebase Rules.</p></div>;
+        if (!config) return <div className="p-8 text-center">Configure o Firebase no primeiro acesso.</div>;
+        if (!db) return <div className="h-screen flex items-center justify-center">Conectando...</div>;
+
+        const ScannerModal = ({ onClose, mode }) => {
+            const [recent, setRecent] = useState([]);
+            const [error, setError] = useState(null);
+            const [flash, setFlash] = useState(false);
+            const lastScanTime = useRef(0);
+            const lastScanCode = useRef('');
+
+            const onScan = async (code) => {
+                const now = Date.now();
+                if (code === lastScanCode.current && now - lastScanTime.current < 2000) return;
+                
+                lastScanTime.current = now;
+                lastScanCode.current = code;
+                
+                try {
+                    const name = await handleMarkAttendance(code, mode);
+                    setRecent(prev => [{ name, time: new Date().toLocaleTimeString(), success: true }, ...prev].slice(0, 5));
+                    setFlash(true);
+                    setTimeout(() => setFlash(false), 600);
+                    setError(null);
+                    if(navigator.vibrate) navigator.vibrate(100);
+                } catch (e) {
+                    setError(e.message);
+                    setRecent(prev => [{ name: e.message, time: new Date().toLocaleTimeString(), success: false }, ...prev].slice(0, 5));
+                    setTimeout(() => setError(null), 3000);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black z-50 flex flex-col animate-in overflow-hidden">
+                    <div className="p-4 z-50 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0">
+                         <div className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-white font-bold text-xs uppercase flex items-center gap-2 border border-white/10">
+                            <ScanLine size={14}/> {mode}
+                         </div>
+                         <button onClick={onClose} className="text-white bg-white/10 p-2 rounded-full backdrop-blur-md"><X size={24}/></button>
+                    </div>
+
+                    <div className={`flex-1 relative transition-all duration-300 ${flash ? 'scan-success-flash' : ''}`}>
+                        <CameraZone onScanSuccess={onScan} />
+                        
+                        {error && (
+                            <div className="absolute top-20 left-4 right-4 bg-red-600 text-white p-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in z-[60]">
+                                <AlertTriangle size={20}/> <span className="text-sm font-bold">{error}</span>
+                            </div>
+                        )}
+
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                             <div className="w-64 h-64 border-2 border-white/20 rounded-3xl relative">
+                                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-lg"></div>
+                                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-lg"></div>
+                                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-lg"></div>
+                                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-lg"></div>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-4 min-h-[200px] rounded-t-3xl shadow-2xl z-[55] overflow-y-auto">
+                        <div className="flex items-center gap-2 text-slate-500 mb-3 text-[10px] font-bold uppercase tracking-widest"><History size={12}/> Histórico Recente</div>
+                        <div className="space-y-2">
+                            {recent.map((r, i) => (
+                                <div key={i} className={`flex justify-between items-center p-3 rounded-xl animate-in ${r.success ? 'bg-white/5 border-l-4 border-green-500' : 'bg-red-500/10 border-l-4 border-red-500'}`}>
+                                    <div className="flex flex-col">
+                                        <span className={`text-sm font-bold ${r.success ? 'text-white' : 'text-red-400'}`}>{r.name}</span>
+                                        <span className="text-[10px] text-slate-500">{r.time}</span>
+                                    </div>
+                                    {r.success ? <CheckCircle size={18} className="text-green-500"/> : <X size={18} className="text-red-500"/>}
+                                </div>
+                            ))}
+                            {recent.length === 0 && <div className="text-center py-8 text-slate-600 text-sm italic">Aguardando leitura...</div>}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         const Dashboard = () => {
             const today = formatDateLocal(new Date());
             const pAula = attendance.filter(a => a.dateString === today && (a.type === 'AULA' || !a.type)).length;
             const pMissa = attendance.filter(a => a.dateString === today && a.type === 'MISSA').length;
-            
-            const chartData = useMemo(() => {
-                const days = [];
-                for(let i=6; i>=0; i--) { 
-                    const d = new Date(); d.setDate(d.getDate() - i); 
-                    const ds = formatDateLocal(d); 
-                    days.push({ name: d.toLocaleDateString('pt-BR', {weekday: 'short'}), value: attendance.filter(a => a.dateString === ds && (a.type === 'AULA' || !a.type)).length }); 
-                }
-                return days;
-            }, [attendance]);
-
             return (
                 <div className="space-y-6 animate-in">
-                    <div className="flex justify-between items-end">
-                        <h2 className="text-2xl font-bold text-gray-800">Painel Geral</h2>
-                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase ${dbStatus === 'online' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                           <div className={`w-2 h-2 rounded-full ${dbStatus === 'online' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
-                           Cloud: {dbStatus === 'online' ? 'Online' : 'Conectando'}
-                        </div>
-                    </div>
+                    <div className="flex justify-between items-end"><h2 className="text-2xl font-bold text-gray-800">Painel Geral</h2><div className="flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-green-100 text-green-600"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Cloud Online</div></div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-white p-5 rounded-xl border shadow-sm transition hover:shadow-md"><p className="text-gray-400 text-xs font-bold uppercase">Total Alunos</p><h3 className="text-3xl font-bold text-blue-600">{students.length}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border shadow-sm transition hover:shadow-md"><p className="text-gray-400 text-xs font-bold uppercase">Chamada Aula</p><h3 className="text-3xl font-bold text-green-600">{pAula}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border shadow-sm transition hover:shadow-md"><p className="text-gray-400 text-xs font-bold uppercase">Chamada Missa</p><h3 className="text-3xl font-bold text-purple-600">{pMissa}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border shadow-sm transition hover:shadow-md"><p className="text-gray-400 text-xs font-bold uppercase">Frequência %</p><h3 className="text-3xl font-bold text-slate-700">{students.length ? Math.round((pAula/students.length)*100) : 0}%</h3></div>
-                    </div>
-                    <div className="bg-white p-6 rounded-xl border shadow-sm h-72">
-                        <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name"/><Tooltip/><Bar dataKey="value" fill="#3b82f6" radius={[4,4,0,0]} barSize={40}/></BarChart></ResponsiveContainer>
+                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Total Alunos</p><h3 className="text-3xl font-bold text-blue-600">{students.length}</h3></div>
+                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Chamada Aula</p><h3 className="text-3xl font-bold text-green-600">{pAula}</h3></div>
+                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Chamada Missa</p><h3 className="text-3xl font-bold text-purple-600">{pMissa}</h3></div>
+                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Frequência %</p><h3 className="text-3xl font-bold text-slate-700">{students.length ? Math.round((pAula/students.length)*100) : 0}%</h3></div>
                     </div>
                 </div>
             );
@@ -313,61 +238,27 @@
             const filtered = students.filter(s => (s.name || '').toLowerCase().includes(search.toLowerCase()));
 
             const save = async () => {
-                if (!form.name) return alert("Nome obrigatório");
+                if (!form.name) return;
                 if (form.id) await updateDoc(doc(db, 'alunos', form.id), { name: form.name, pastoral: form.pastoral, qrCodeValue: form.qrCodeValue });
                 else await addDoc(collection(db, 'alunos'), { name: form.name, pastoral: form.pastoral, qrCodeValue: form.qrCodeValue || Math.random().toString(36).substr(2, 6).toUpperCase(), createdAt: serverTimestamp() });
                 setModal(false);
             };
 
             return (
-                <div className="space-y-6 animate-in">
+                <div className="space-y-4 animate-in">
                     <div className="flex justify-between items-center"><h2 className="text-2xl font-bold">Alunos</h2><button onClick={() => {setForm({id:null, name:'', pastoral: PastoralType.CATEQUESE, qrCodeValue:''}); setModal(true)}} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-md"><Plus size={18}/> Novo</button></div>
-                    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-                        <div className="p-4 border-b bg-gray-50"><div className="relative"><Search className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" placeholder="Buscar por nome..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full pl-10 p-2 border rounded-lg bg-white outline-none focus:ring-2 ring-blue-500/20"/></div></div>
-                        <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-gray-50 font-bold"><tr><th className="p-4">Nome</th><th className="p-4">Pastoral</th><th className="p-4">ID / QR</th><th className="p-4 text-right">Ações</th></tr></thead><tbody className="divide-y">{filtered.map(s => (<tr key={s.id} className="hover:bg-gray-50 transition"><td className="p-4 font-medium">{s.name}</td><td className="p-4"><span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-[10px] font-bold uppercase">{s.pastoral}</span></td><td className="p-4 font-mono text-gray-400">{s.qrCodeValue}</td><td className="p-4 text-right space-x-2"><button onClick={() => {setForm(s); setModal(true)}} className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Edit2 size={16}/></button><button onClick={async () => { if(confirm(`Excluir ${s.name}?`)) await deleteDoc(doc(db, 'alunos', s.id)) }} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div>
-                    </div>
-                    {modal && <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl animate-in"><h3 className="font-bold text-lg border-b pb-2">Cadastrar Aluno</h3><div className="space-y-3"><div><label className="text-[10px] font-bold text-gray-400 uppercase">Nome Completo</label><input className="w-full p-3 border rounded-lg bg-gray-50 focus:bg-white" placeholder="Ex: João Silva" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Pastoral</label><select className="w-full p-3 border rounded-lg bg-gray-50" value={form.pastoral} onChange={e=>setForm({...form, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">QR Code / ID (Opcional)</label><input className="w-full p-3 border rounded-lg bg-gray-50 font-mono" placeholder="Deixe em branco p/ gerar" value={form.qrCodeValue} onChange={e=>setForm({...form, qrCodeValue:e.target.value})}/></div></div><div className="flex justify-end gap-2 pt-4"><button onClick={()=>setModal(false)} className="px-4 py-2 text-gray-500 font-medium hover:bg-gray-100 rounded-lg">Cancelar</button><button onClick={save} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold shadow-lg shadow-blue-500/20">Salvar</button></div></div></div>}
-                </div>
-            );
-        };
-
-        const ScannerModal = ({ onClose, mode }) => {
-            const [status, setStatus] = useState('idle');
-            const [msg, setMsg] = useState('');
-            const onScan = async (code) => {
-                try {
-                    const name = await handleMarkAttendance(code, mode);
-                    setStatus('success'); setMsg(name);
-                    setTimeout(() => { setStatus('idle'); setMsg(''); }, 2000);
-                } catch (e) { setStatus('error'); setMsg(e.message); setTimeout(() => { setStatus('idle'); setMsg(''); }, 2000); }
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black z-50 flex flex-col animate-in">
-                    <div className="p-4 z-50 flex justify-between items-center bg-black/50 backdrop-blur-md absolute top-0 left-0 right-0">
-                         <div className="bg-white/20 px-4 py-1 rounded-full text-white font-bold text-xs uppercase flex items-center gap-2 border border-white/10"><ScanLine size={14}/> {mode}</div>
-                         <button onClick={onClose} className="text-white bg-white/10 p-2 rounded-full"><X size={24}/></button>
-                    </div>
-                    <div className="flex-1 relative flex items-center justify-center">
-                        <CameraZone onScanSuccess={onScan} />
-                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                             <div className="w-64 h-64 border-2 border-white/30 rounded-3xl relative">
-                                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-lg"></div>
-                                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-lg"></div>
-                                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-lg"></div>
-                                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-lg"></div>
-                                  <div className="w-full h-1 bg-blue-400 absolute top-1/2 left-0 animate-bounce opacity-30"></div>
-                             </div>
-                        </div>
-                        {(status !== 'idle') && (
-                            <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center p-8 text-center animate-in backdrop-blur-md ${status === 'success' ? 'bg-green-600/90' : 'bg-red-600/90'} text-white`}>
-                                {status === 'success' ? <CheckCircle size={80} className="mb-4"/> : <AlertTriangle size={80} className="mb-4"/>}
-                                <h3 className="text-2xl font-bold">{msg}</h3>
-                                <p className="text-white/60 text-sm mt-2">{status === 'success' ? 'Presença Confirmada' : 'Atenção'}</p>
+                    <div className="bg-white rounded-xl border shadow-sm p-3"><input type="text" placeholder="Buscar por nome..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 outline-none"/></div>
+                    <div className="grid gap-3">
+                        {filtered.map(s => (
+                            <div key={s.id} className="bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center">
+                                <div><p className="font-bold text-slate-800">{s.name}</p><p className="text-[10px] font-bold text-blue-500 uppercase">{s.pastoral}</p></div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => {setForm(s); setModal(true)}} className="text-slate-400 hover:text-blue-500 transition p-2"><Edit2 size={16}/></button>
+                                </div>
                             </div>
-                        )}
+                        ))}
                     </div>
-                    <div className="p-8 text-center text-white/40 text-xs font-medium uppercase tracking-widest bg-black">Posicione o QR Code dentro do quadrado</div>
+                    {modal && <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4"><h3 className="font-bold text-lg border-b pb-2">Cadastrar</h3><input className="w-full p-3 border rounded-lg" placeholder="Nome" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/><select className="w-full p-3 border rounded-lg" value={form.pastoral} onChange={e=>setForm({...form, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select><input className="w-full p-3 border rounded-lg font-mono" placeholder="QR Code ID" value={form.qrCodeValue} onChange={e=>setForm({...form, qrCodeValue:e.target.value})}/><div className="flex justify-end gap-2"><button onClick={()=>setModal(false)} className="px-4 py-2 text-gray-500">Cancelar</button><button onClick={save} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></div></div>}
                 </div>
             );
         };
@@ -377,40 +268,25 @@
             <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl`}>
                 <div className="h-20 flex items-center px-6 border-b border-slate-800 font-bold text-xl bg-slate-950 gap-2"><div className="bg-blue-600 p-2 rounded-lg"><Church size={20}/></div> PastoralPass</div>
                 <nav className="flex-1 p-4 space-y-2">
-                    {[{id:'dashboard', icon:Home, label:'Painel Principal'},{id:'students', icon:Users, label:'Lista de Alunos'},{id:'reports', icon:ClipboardList, label:'Relatórios de Data'}].map(i => (
-                        <button key={i.id} onClick={()=>{setActiveTab(i.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all duration-200 ${activeTab === i.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><i.icon size={20}/> {i.label}</button>
+                    {[{id:'dashboard', icon:Home, label:'Painel'},{id:'students', icon:Users, label:'Alunos'},{id:'reports', icon:ClipboardList, label:'Relatórios'}].map(i => (
+                        <button key={i.id} onClick={()=>{setActiveTab(i.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${activeTab === i.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><i.icon size={20}/> {i.label}</button>
                     ))}
                 </nav>
-                <div className="p-4 border-t border-slate-800">
-                    <button onClick={()=>setActiveTab('settings')} className="w-full flex items-center gap-3 p-4 text-slate-500 hover:text-white transition-colors"><Settings size={20}/> Configurações</button>
-                </div>
             </aside>
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
                 <header className="h-16 bg-white border-b flex items-center px-4 justify-between md:hidden shadow-sm"><button onClick={()=>setSidebarOpen(true)} className="p-2 text-gray-600"><Database size={24}/></button><span className="font-bold text-blue-900">PastoralPass</span><div className="w-8"></div></header>
                 <div className="flex-1 overflow-auto p-4 md:p-8 pb-32">
-                    <div className="max-w-6xl mx-auto">
-                        {activeTab === 'dashboard' && <Dashboard />}
-                        {activeTab === 'students' && <StudentsList />}
-                        {activeTab === 'reports' && (
-                             <div className="bg-white p-12 rounded-2xl border text-center text-gray-400 space-y-4 animate-in">
-                                 <ClipboardList size={48} className="mx-auto text-gray-200"/>
-                                 <p className="font-medium">Relatórios em tempo real estão sendo carregados...</p>
-                                 <p className="text-xs">Para esta versão simplificada, use a aba Painel para visão geral.</p>
-                             </div>
-                        )}
-                        {activeTab === 'settings' && (
-                            <div className="bg-white p-8 rounded-2xl border border-red-100 animate-in"><h2 className="text-xl font-bold mb-4 text-red-600 flex items-center gap-2"><AlertTriangle/> Reset de Segurança</h2><p className="text-sm text-gray-500 mb-6">Ao clicar no botão abaixo, todas as configurações de conexão (Firebase Key e Gemini) serão removidas deste dispositivo. Os dados no banco de dados não serão apagados.</p><button onClick={()=>{localStorage.removeItem(CONFIG_KEY); window.location.reload()}} className="bg-red-50 text-red-600 px-6 py-4 rounded-xl border border-red-200 font-bold hover:bg-red-600 hover:text-white w-full transition-all duration-300">Desconectar e Resetar App</button></div>
-                        )}
-                    </div>
+                    {activeTab === 'dashboard' && <Dashboard />}
+                    {activeTab === 'students' && <StudentsList />}
+                    {activeTab === 'reports' && <div className="p-8 text-center text-gray-400 bg-white rounded-2xl border">Em breve: Relatórios Avançados</div>}
                 </div>
                 
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/80 backdrop-blur-xl p-3 rounded-3xl shadow-2xl border border-white/50 z-30">
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/90 backdrop-blur-xl p-3 rounded-3xl shadow-2xl border border-white/50 z-30">
                     <button onClick={()=>{setSelectedScanMode('AULA'); setScannerOpen(true)}} className="bg-blue-600 text-white flex items-center gap-3 px-6 py-4 rounded-2xl font-bold hover:bg-blue-700 transition active:scale-95 shadow-xl shadow-blue-500/20"><BookOpen size={20}/> CHAMADA AULA</button>
                     <div className="w-px h-8 bg-gray-200"></div>
                     <button onClick={()=>{setSelectedScanMode('MISSA'); setScannerOpen(true)}} className="bg-purple-600 text-white flex items-center gap-3 px-6 py-4 rounded-2xl font-bold hover:bg-purple-700 transition active:scale-95 shadow-xl shadow-purple-500/20"><Church size={20}/> MISSA</button>
                 </div>
             </main>
-
             {scannerOpen && <ScannerModal mode={selectedScanMode} onClose={() => setScannerOpen(false)} />}
           </div>
         );
