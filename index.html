@@ -32,7 +32,9 @@
     <style>
       body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       .animate-in { animation: fadeIn 0.3s ease-out; }
+      .animate-slide-up { animation: slideUp 0.3s ease-out; }
       
       .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -43,7 +45,6 @@
       .scan-success-flash { animation: flashGreen 0.6s ease-out; }
       @keyframes flashGreen { 0% { box-shadow: inset 0 0 100px rgba(34, 197, 94, 0.8); } 100% { box-shadow: inset 0 0 0px rgba(34, 197, 94, 0); } }
       
-      /* Custom Scrollbar */
       ::-webkit-scrollbar { width: 5px; }
       ::-webkit-scrollbar-track { background: #f1f5f9; }
       ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -62,7 +63,7 @@
       import ReactDOM from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
       import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, query, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
-      import { Home, Users, ClipboardList, Scan, X, CheckCircle, AlertTriangle, Plus, Search, ScanLine, Settings, Database, ArrowRight, Edit2, BookOpen, Church, Lock, History, Trash2, Filter, Calendar, TrendingUp } from 'lucide-react';
+      import { Home, Users, ClipboardList, Scan, X, CheckCircle, AlertTriangle, Plus, Search, ScanLine, Settings, Database, ArrowRight, Edit2, BookOpen, Church, Lock, History, Trash2, Filter, Calendar, TrendingUp, ChevronRight, UserCircle } from 'lucide-react';
       import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
       const CONFIG_KEY = 'pastoral_config_v7';
@@ -156,6 +157,64 @@
         if (!config) return <div className="h-screen flex flex-col items-center justify-center p-8 bg-blue-50 text-blue-800 text-center"><Database size={64} className="mb-4"/><h2 className="text-xl font-bold">Configuração Necessária</h2><p>Por favor, configure o Firebase.</p></div>;
         if (!db) return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Conectando...</div>;
 
+        const StudentDetailModal = ({ studentId, onClose }) => {
+            const student = students.find(s => s.id === studentId);
+            const history = attendance.filter(a => a.studentId === studentId);
+            
+            if (!student) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black/60 z-[200] flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-md animate-in">
+                    <div className="bg-white w-full max-w-xl rounded-t-[32px] md:rounded-[32px] flex flex-col h-[85vh] md:h-[70vh] shadow-2xl overflow-hidden animate-slide-up">
+                        <div className="p-6 border-b flex justify-between items-center bg-gray-50">
+                            <div>
+                                <h3 className="font-bold text-lg text-slate-800 uppercase leading-none">{student.name}</h3>
+                                <p className="text-[10px] font-bold text-blue-500 uppercase mt-1 tracking-wider">{student.pastoral}</p>
+                            </div>
+                            <button onClick={onClose} className="bg-gray-200 p-2 rounded-full text-gray-500 hover:bg-gray-300 transition-colors"><X size={20}/></button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
+                                    <p className="text-[10px] font-bold text-green-600 uppercase mb-1">Total Aulas</p>
+                                    <p className="text-3xl font-black text-green-700">{history.filter(a => a.type !== 'MISSA').length}</p>
+                                </div>
+                                <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                                    <p className="text-[10px] font-bold text-purple-600 uppercase mb-1">Total Missas</p>
+                                    <p className="text-3xl font-black text-purple-700">{history.filter(a => a.type === 'MISSA').length}</p>
+                                </div>
+                            </div>
+
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Histórico Completo</h4>
+                            <div className="space-y-3">
+                                {history.map(entry => (
+                                    <div key={entry.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border hover:bg-white transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${entry.type === 'MISSA' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`}>
+                                                {entry.type === 'MISSA' ? <Church size={18}/> : <BookOpen size={18}/>}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-700">{entry.type || 'AULA'}</p>
+                                                <p className="text-[10px] text-gray-400 font-medium">{new Date(entry.timestamp).toLocaleDateString('pt-BR')} às {new Date(entry.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={async () => { if(confirm('Excluir este registro?')) await deleteDoc(doc(db, 'presencas', entry.id)) }} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                                    </div>
+                                ))}
+                                {history.length === 0 && (
+                                    <div className="text-center py-10 opacity-30">
+                                        <History size={48} className="mx-auto mb-2"/>
+                                        <p className="text-sm font-medium">Nenhum registro encontrado</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const Dashboard = () => {
             const today = formatDateLocal(new Date());
             const pAula = attendance.filter(a => a.dateString === today && (a.type === 'AULA' || !a.type)).length;
@@ -202,62 +261,68 @@
 
         const ReportsView = () => {
             const [search, setSearch] = useState('');
-            const [viewMode, setViewMode] = useState('list'); // 'list' or 'summary'
+            const [viewMode, setViewMode] = useState('summary');
+            const [selectedId, setSelectedId] = useState(null);
             
             const filteredAttendance = attendance.filter(a => a.studentName.toLowerCase().includes(search.toLowerCase()));
             
             const studentSummary = useMemo(() => {
                 const summary = {};
                 attendance.forEach(a => {
-                    if (!summary[a.studentId]) summary[a.studentId] = { name: a.studentName, pastoral: a.pastoral, aula: 0, missa: 0 };
+                    if (!summary[a.studentId]) summary[a.studentId] = { id: a.studentId, name: a.studentName, pastoral: a.pastoral, aula: 0, missa: 0 };
                     if (a.type === 'MISSA') summary[a.studentId].missa++;
                     else summary[a.studentId].aula++;
                 });
-                return Object.values(summary).sort((a,b) => (b.aula + b.missa) - (a.aula + a.missa));
+                return Object.values(summary).sort((a,b) => b.name.localeCompare(a.name));
             }, [attendance]);
 
             return (
-                <div className="space-y-6 animate-in pb-20">
+                <div className="space-y-6 animate-in pb-10">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <h2 className="text-2xl font-bold">Relatórios</h2>
+                        <h2 className="text-2xl font-bold text-slate-800">Relatórios</h2>
                         <div className="flex bg-white p-1 rounded-2xl border shadow-sm w-fit self-start md:self-auto">
-                            <button onClick={()=>setViewMode('list')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-gray-400'}`}>HISTÓRICO</button>
-                            <button onClick={()=>setViewMode('summary')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${viewMode === 'summary' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-gray-400'}`}>RESUMO ALUNOS</button>
+                            <button onClick={()=>setViewMode('summary')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${viewMode === 'summary' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-gray-400'}`}>RESUMO ALUNOS</button>
+                            <button onClick={()=>setViewMode('list')} className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-gray-400'}`}>HISTÓRICO GERAL</button>
                         </div>
                     </div>
 
                     <div className="bg-white p-4 rounded-2xl border shadow-sm flex items-center gap-3">
                         <Search className="text-gray-400" size={18}/>
-                        <input type="text" placeholder="Filtrar por nome do aluno..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full outline-none text-sm"/>
+                        <input type="text" placeholder="Buscar por nome do aluno..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full outline-none text-sm font-medium"/>
                     </div>
 
                     {viewMode === 'list' ? (
-                        <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
+                        <div className="bg-white rounded-[32px] border shadow-sm overflow-hidden animate-in">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left text-sm">
-                                    <thead className="bg-gray-50 font-bold border-b">
+                                    <thead className="bg-gray-50/50 font-bold border-b text-[10px] uppercase text-gray-400 tracking-wider">
                                         <tr>
-                                            <th className="p-4">Aluno</th>
-                                            <th className="p-4">Tipo</th>
-                                            <th className="p-4">Data</th>
-                                            <th className="p-4 text-right">Ações</th>
+                                            <th className="p-5">Aluno</th>
+                                            <th className="p-5">Tipo</th>
+                                            <th className="p-5">Data</th>
+                                            <th className="p-5 text-right">Ação</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {filteredAttendance.map(a => (
-                                            <tr key={a.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="p-4 font-medium">
-                                                    <div>{a.studentName}</div>
-                                                    <div className="text-[10px] text-blue-500 font-bold uppercase">{a.pastoral}</div>
+                                            <tr key={a.id} className="hover:bg-blue-50/30 transition-colors">
+                                                <td className="p-5 font-bold text-slate-700">
+                                                    <div className="flex flex-col">
+                                                        <span>{a.studentName}</span>
+                                                        <span className="text-[9px] text-blue-500 font-bold uppercase tracking-tighter">{a.pastoral}</span>
+                                                    </div>
                                                 </td>
-                                                <td className="p-4">
-                                                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${a.type === 'MISSA' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`}>
+                                                <td className="p-5">
+                                                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase ${a.type === 'MISSA' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`}>
                                                         {a.type || 'AULA'}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 text-gray-500 text-xs">{new Date(a.timestamp).toLocaleDateString('pt-BR')} <br/> <span className="text-[10px]">{new Date(a.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</span></td>
-                                                <td className="p-4 text-right">
-                                                    <button onClick={async () => { if(confirm('Apagar esta presença?')) await deleteDoc(doc(db, 'presencas', a.id)) }} className="text-red-300 hover:text-red-500 p-2"><Trash2 size={16}/></button>
+                                                <td className="p-5 text-gray-500 text-[11px] font-medium">
+                                                    {new Date(a.timestamp).toLocaleDateString('pt-BR')} <br/>
+                                                    <span className="text-[10px] text-gray-300 font-normal">{new Date(a.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</span>
+                                                </td>
+                                                <td className="p-5 text-right">
+                                                    <button onClick={async () => { if(confirm('Apagar esta presença?')) await deleteDoc(doc(db, 'presencas', a.id)) }} className="text-red-200 hover:text-red-500 p-2 transition-colors"><Trash2 size={16}/></button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -267,21 +332,28 @@
                             </div>
                         </div>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 animate-in">
                             {studentSummary.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
-                                <div key={s.name} className="bg-white p-5 rounded-3xl border shadow-sm flex justify-between items-center animate-in">
-                                    <div>
-                                        <h4 className="font-bold text-gray-800">{s.name}</h4>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase">{s.pastoral}</p>
+                                <div key={s.id} onClick={() => setSelectedId(s.id)} className="bg-white p-6 rounded-[32px] border shadow-sm flex flex-col justify-between hover:border-blue-300 transition-all cursor-pointer group active:scale-[0.98]">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h4 className="font-bold text-slate-800 text-base group-hover:text-blue-600 transition-colors">{s.name}</h4>
+                                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{s.pastoral}</p>
+                                        </div>
+                                        <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400 transition-all group-hover:translate-x-1"/>
                                     </div>
-                                    <div className="flex gap-4 text-center">
-                                        <div><p className="text-[10px] font-bold text-gray-400 uppercase">Aulas</p><p className="text-lg font-bold text-green-600">{s.aula}</p></div>
-                                        <div><p className="text-[10px] font-bold text-gray-400 uppercase">Missas</p><p className="text-lg font-bold text-purple-600">{s.missa}</p></div>
+                                    <div className="flex gap-4 border-t pt-4">
+                                        <div className="flex-1"><p className="text-[9px] font-black text-gray-300 uppercase tracking-tighter">Aulas</p><p className="text-xl font-black text-green-600">{s.aula}</p></div>
+                                        <div className="w-px bg-gray-100"></div>
+                                        <div className="flex-1 text-right"><p className="text-[9px] font-black text-gray-300 uppercase tracking-tighter">Missas</p><p className="text-xl font-black text-purple-600">{s.missa}</p></div>
                                     </div>
                                 </div>
                             ))}
+                            {studentSummary.length === 0 && <div className="col-span-full py-20 text-center text-gray-400 italic">Sem dados de presença ainda.</div>}
                         </div>
                     )}
+
+                    {selectedId && <StudentDetailModal studentId={selectedId} onClose={() => setSelectedId(null)} />}
                 </div>
             );
         };
@@ -383,7 +455,6 @@
 
         return (
           <div className="flex min-h-screen bg-gray-50 overflow-hidden">
-            {/* Sidebar Overlay for Mobile */}
             {sidebarOpen && <div onClick={()=>setSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-[40] md:hidden backdrop-blur-sm animate-in"></div>}
             
             <aside className={`fixed md:static inset-y-0 left-0 z-[50] w-72 bg-slate-900 text-white transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl`}>
@@ -393,7 +464,7 @@
                         <button key={i.id} onClick={()=>{setActiveTab(i.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all duration-300 ${activeTab === i.id ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/30 font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><i.icon size={22}/> {i.label}</button>
                     ))}
                 </nav>
-                <div className="p-6 border-t border-slate-800"><button onClick={()=>{localStorage.removeItem(CONFIG_KEY); window.location.reload()}} className="w-full flex items-center gap-3 p-4 text-slate-600 hover:text-red-400 transition-all text-xs font-bold uppercase tracking-wider"><Settings size={18}/> Reset de Configuração</button></div>
+                <div className="p-6 border-t border-slate-800 font-bold text-xs text-slate-600 tracking-widest uppercase text-center">v7.2 Stable</div>
             </aside>
 
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -403,7 +474,7 @@
                     <div className="w-12"></div>
                 </header>
                 
-                <div className="flex-1 overflow-y-auto p-6 md:p-12 pb-44 scroll-smooth">
+                <div className="flex-1 overflow-y-auto p-6 md:p-12 pb-32 scroll-smooth">
                     <div className="max-w-5xl mx-auto">
                         {activeTab === 'dashboard' && <Dashboard />}
                         {activeTab === 'students' && <StudentsList />}
@@ -411,12 +482,14 @@
                     </div>
                 </div>
                 
-                {/* Floating Bottom Action Bar */}
-                <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/80 backdrop-blur-2xl px-5 py-4 rounded-[40px] shadow-2xl border border-white/40 z-40 ring-1 ring-black/5 animate-in">
-                    <button onClick={()=>{setSelectedScanMode('AULA'); setScannerOpen(true)}} className="bg-blue-600 text-white flex items-center gap-3 px-8 py-5 rounded-[28px] font-black hover:bg-blue-700 transition active:scale-90 shadow-xl shadow-blue-500/30 text-sm tracking-wide"><BookOpen size={20}/> AULA</button>
-                    <div className="w-px h-12 bg-gray-200"></div>
-                    <button onClick={()=>{setSelectedScanMode('MISSA'); setScannerOpen(true)}} className="bg-purple-600 text-white flex items-center gap-3 px-8 py-5 rounded-[28px] font-black hover:bg-purple-700 transition active:scale-90 shadow-xl shadow-purple-500/30 text-sm tracking-wide"><Church size={20}/> MISSA</button>
-                </div>
+                {/* Floating Bottom Action Bar - Hidden in Reports to avoid obstruction */}
+                {activeTab !== 'reports' && (
+                    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/80 backdrop-blur-2xl px-5 py-4 rounded-[40px] shadow-2xl border border-white/40 z-40 ring-1 ring-black/5 animate-in">
+                        <button onClick={()=>{setSelectedScanMode('AULA'); setScannerOpen(true)}} className="bg-blue-600 text-white flex items-center gap-3 px-8 py-5 rounded-[28px] font-black hover:bg-blue-700 transition active:scale-90 shadow-xl shadow-blue-500/30 text-sm tracking-wide"><BookOpen size={20}/> AULA</button>
+                        <div className="w-px h-12 bg-gray-200"></div>
+                        <button onClick={()=>{setSelectedScanMode('MISSA'); setScannerOpen(true)}} className="bg-purple-600 text-white flex items-center gap-3 px-8 py-5 rounded-[28px] font-black hover:bg-purple-700 transition active:scale-90 shadow-xl shadow-purple-500/30 text-sm tracking-wide"><Church size={20}/> MISSA</button>
+                    </div>
+                )}
             </main>
 
             {scannerOpen && <ScannerModal mode={selectedScanMode} onClose={() => setScannerOpen(false)} />}
