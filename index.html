@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-    <title>PastoralPass - Ultra Fast</title>
+    <title>PastoralPass - Estável</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     
@@ -125,19 +125,35 @@
 
         const handleMarkAttendance = async (scannedCode, type) => {
           const cleanCode = scannedCode.trim().toLowerCase();
-          const student = students.find(s => (s.qrCodeValue || '').trim().toLowerCase() === cleanCode || s.id.toLowerCase() === cleanCode);
+          
+          // Lógica de busca restaurada: ID exato ou QR code contido no texto escaneado
+          const student = students.find(s => {
+              const dbCode = (s.qrCodeValue || '').trim().toLowerCase();
+              const dbId = (s.id || '').toLowerCase();
+              return dbCode === cleanCode || dbId === cleanCode || (dbCode.length >= 2 && cleanCode.includes(dbCode));
+          });
+
           if (!student) throw new Error(`Não encontrado: ${scannedCode}`);
+          
           const today = formatDateLocal(new Date());
           const already = attendance.find(a => a.studentId === student.id && a.dateString === today && (a.type === type || (!a.type && type === 'AULA')));
+          
           if (already) throw new Error(`${student.name} já registrado hoje!`);
           
-          await addDoc(collection(db, 'presencas'), { studentId: student.id, studentName: student.name, pastoral: student.pastoral, timestamp: Date.now(), dateString: today, type: type });
+          await addDoc(collection(db, 'presencas'), { 
+              studentId: student.id, 
+              studentName: student.name, 
+              pastoral: student.pastoral, 
+              timestamp: Date.now(), 
+              dateString: today, 
+              type: type 
+          });
           return student.name;
         };
 
-        if (permissionDenied) return <div className="p-8 text-center"><Lock size={48} className="mx-auto mb-4 text-red-500"/> <h2 className="font-bold">Acesso Negado</h2><p>Verifique as regras do Firebase Rules.</p></div>;
-        if (!config) return <div className="p-8 text-center">Configure o Firebase no primeiro acesso.</div>;
-        if (!db) return <div className="h-screen flex items-center justify-center">Conectando...</div>;
+        if (permissionDenied) return <div className="p-8 text-center h-screen flex flex-col justify-center items-center bg-gray-50"><Lock size={48} className="mx-auto mb-4 text-red-500"/> <h2 className="font-bold text-xl">Acesso Negado</h2><p className="text-gray-500">Verifique as regras do Firebase Rules no Console.</p><button onClick={()=>window.location.reload()} className="mt-4 text-blue-600 underline">Recarregar</button></div>;
+        if (!config) return <div className="p-8 text-center h-screen flex flex-col justify-center items-center">Configure o Firebase para começar.</div>;
+        if (!db) return <div className="h-screen flex items-center justify-center bg-gray-50 font-medium text-blue-600">Conectando ao banco...</div>;
 
         const ScannerModal = ({ onClose, mode }) => {
             const [recent, setRecent] = useState([]);
@@ -148,7 +164,7 @@
 
             const onScan = async (code) => {
                 const now = Date.now();
-                if (code === lastScanCode.current && now - lastScanTime.current < 2000) return;
+                if (code === lastScanCode.current && now - lastScanTime.current < 2500) return;
                 
                 lastScanTime.current = now;
                 lastScanCode.current = code;
@@ -163,13 +179,13 @@
                 } catch (e) {
                     setError(e.message);
                     setRecent(prev => [{ name: e.message, time: new Date().toLocaleTimeString(), success: false }, ...prev].slice(0, 5));
-                    setTimeout(() => setError(null), 3000);
+                    setTimeout(() => setError(null), 3500);
                 }
             };
 
             return (
                 <div className="fixed inset-0 bg-black z-50 flex flex-col animate-in overflow-hidden">
-                    <div className="p-4 z-50 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0">
+                    <div className="p-4 z-50 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent absolute top-0 left-0 right-0">
                          <div className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-white font-bold text-xs uppercase flex items-center gap-2 border border-white/10">
                             <ScanLine size={14}/> {mode}
                          </div>
@@ -180,8 +196,8 @@
                         <CameraZone onScanSuccess={onScan} />
                         
                         {error && (
-                            <div className="absolute top-20 left-4 right-4 bg-red-600 text-white p-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in z-[60]">
-                                <AlertTriangle size={20}/> <span className="text-sm font-bold">{error}</span>
+                            <div className="absolute top-24 left-4 right-4 bg-red-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in z-[60] border border-red-500">
+                                <AlertTriangle size={24}/> <span className="text-sm font-bold">{error}</span>
                             </div>
                         )}
 
@@ -195,19 +211,19 @@
                         </div>
                     </div>
 
-                    <div className="bg-slate-900 p-4 min-h-[200px] rounded-t-3xl shadow-2xl z-[55] overflow-y-auto">
-                        <div className="flex items-center gap-2 text-slate-500 mb-3 text-[10px] font-bold uppercase tracking-widest"><History size={12}/> Histórico Recente</div>
+                    <div className="bg-slate-900 p-4 min-h-[250px] rounded-t-3xl shadow-2xl z-[55] overflow-y-auto border-t border-slate-800">
+                        <div className="flex items-center gap-2 text-slate-500 mb-4 text-[10px] font-bold uppercase tracking-widest px-2"><History size={12}/> Histórico de Leitura</div>
                         <div className="space-y-2">
                             {recent.map((r, i) => (
-                                <div key={i} className={`flex justify-between items-center p-3 rounded-xl animate-in ${r.success ? 'bg-white/5 border-l-4 border-green-500' : 'bg-red-500/10 border-l-4 border-red-500'}`}>
+                                <div key={i} className={`flex justify-between items-center p-4 rounded-2xl animate-in ${r.success ? 'bg-white/5 border-l-4 border-green-500' : 'bg-red-500/10 border-l-4 border-red-500'}`}>
                                     <div className="flex flex-col">
                                         <span className={`text-sm font-bold ${r.success ? 'text-white' : 'text-red-400'}`}>{r.name}</span>
-                                        <span className="text-[10px] text-slate-500">{r.time}</span>
+                                        <span className="text-[10px] text-slate-500 uppercase">{r.time}</span>
                                     </div>
-                                    {r.success ? <CheckCircle size={18} className="text-green-500"/> : <X size={18} className="text-red-500"/>}
+                                    {r.success ? <CheckCircle size={20} className="text-green-500"/> : <X size={20} className="text-red-500"/>}
                                 </div>
                             ))}
-                            {recent.length === 0 && <div className="text-center py-8 text-slate-600 text-sm italic">Aguardando leitura...</div>}
+                            {recent.length === 0 && <div className="text-center py-12 text-slate-600 text-sm italic">Câmera ativa. Aproxime o QR Code.</div>}
                         </div>
                     </div>
                 </div>
@@ -218,14 +234,42 @@
             const today = formatDateLocal(new Date());
             const pAula = attendance.filter(a => a.dateString === today && (a.type === 'AULA' || !a.type)).length;
             const pMissa = attendance.filter(a => a.dateString === today && a.type === 'MISSA').length;
+            
+            const chartData = useMemo(() => {
+                const days = [];
+                for(let i=6; i>=0; i--) { 
+                    const d = new Date(); d.setDate(d.getDate() - i); 
+                    const ds = formatDateLocal(d); 
+                    days.push({ 
+                        name: d.toLocaleDateString('pt-BR', {weekday: 'short'}), 
+                        value: attendance.filter(a => a.dateString === ds && (a.type === 'AULA' || !a.type)).length 
+                    }); 
+                }
+                return days;
+            }, [attendance]);
+
             return (
                 <div className="space-y-6 animate-in">
-                    <div className="flex justify-between items-end"><h2 className="text-2xl font-bold text-gray-800">Painel Geral</h2><div className="flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-green-100 text-green-600"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Cloud Online</div></div>
+                    <div className="flex justify-between items-end"><h2 className="text-2xl font-bold text-gray-800">Painel Principal</h2><div className="flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase bg-green-100 text-green-600 border border-green-200"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Cloud Online</div></div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Total Alunos</p><h3 className="text-3xl font-bold text-blue-600">{students.length}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Chamada Aula</p><h3 className="text-3xl font-bold text-green-600">{pAula}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Chamada Missa</p><h3 className="text-3xl font-bold text-purple-600">{pMissa}</h3></div>
-                        <div className="bg-white p-5 rounded-xl border shadow-sm"><p className="text-gray-400 text-xs font-bold uppercase">Frequência %</p><h3 className="text-3xl font-bold text-slate-700">{students.length ? Math.round((pAula/students.length)*100) : 0}%</h3></div>
+                        <div className="bg-white p-5 rounded-2xl border shadow-sm"><p className="text-gray-400 text-[10px] font-bold uppercase mb-1">Total Alunos</p><h3 className="text-3xl font-bold text-blue-600">{students.length}</h3></div>
+                        <div className="bg-white p-5 rounded-2xl border shadow-sm"><p className="text-gray-400 text-[10px] font-bold uppercase mb-1">Presença Aula</p><h3 className="text-3xl font-bold text-green-600">{pAula}</h3></div>
+                        <div className="bg-white p-5 rounded-2xl border shadow-sm"><p className="text-gray-400 text-[10px] font-bold uppercase mb-1">Presença Missa</p><h3 className="text-3xl font-bold text-purple-600">{pMissa}</h3></div>
+                        <div className="bg-white p-5 rounded-2xl border shadow-sm"><p className="text-gray-400 text-[10px] font-bold uppercase mb-1">Taxa Hoje</p><h3 className="text-3xl font-bold text-slate-700">{students.length ? Math.round((pAula/students.length)*100) : 0}%</h3></div>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl border shadow-sm">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase mb-6">Frequência Semanal (Aulas)</h4>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} dy={10}/>
+                                    <YAxis hide={true}/>
+                                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}/>
+                                    <Bar dataKey="value" fill="#3b82f6" radius={[6,6,0,0]} barSize={32}/>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </div>
             );
@@ -246,45 +290,51 @@
 
             return (
                 <div className="space-y-4 animate-in">
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold">Alunos</h2><button onClick={() => {setForm({id:null, name:'', pastoral: PastoralType.CATEQUESE, qrCodeValue:''}); setModal(true)}} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-md"><Plus size={18}/> Novo</button></div>
-                    <div className="bg-white rounded-xl border shadow-sm p-3"><input type="text" placeholder="Buscar por nome..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full p-2 border rounded-lg bg-gray-50 outline-none"/></div>
+                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold">Alunos</h2><button onClick={() => {setForm({id:null, name:'', pastoral: PastoralType.CATEQUESE, qrCodeValue:''}); setModal(true)}} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-md hover:bg-blue-700"><Plus size={18}/> Novo</button></div>
+                    <div className="bg-white rounded-xl border shadow-sm p-3 focus-within:ring-2 ring-blue-500/20 transition-all"><input type="text" placeholder="Pesquisar por nome..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full p-2 border-none outline-none text-sm"/></div>
                     <div className="grid gap-3">
                         {filtered.map(s => (
-                            <div key={s.id} className="bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center">
-                                <div><p className="font-bold text-slate-800">{s.name}</p><p className="text-[10px] font-bold text-blue-500 uppercase">{s.pastoral}</p></div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => {setForm(s); setModal(true)}} className="text-slate-400 hover:text-blue-500 transition p-2"><Edit2 size={16}/></button>
+                            <div key={s.id} className="bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center hover:border-blue-200 transition-colors">
+                                <div><p className="font-bold text-slate-800">{s.name}</p><p className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">{s.pastoral}</p></div>
+                                <div className="flex gap-1">
+                                    <button onClick={() => {setForm(s); setModal(true)}} className="text-slate-400 hover:text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-all"><Edit2 size={16}/></button>
+                                    <button onClick={async () => { if(confirm(`Excluir ${s.name}?`)) await deleteDoc(doc(db, 'alunos', s.id)) }} className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"><Trash2 size={16}/></button>
                                 </div>
                             </div>
                         ))}
+                        {filtered.length === 0 && <p className="text-center py-10 text-gray-400 italic text-sm">Nenhum aluno encontrado.</p>}
                     </div>
-                    {modal && <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4"><h3 className="font-bold text-lg border-b pb-2">Cadastrar</h3><input className="w-full p-3 border rounded-lg" placeholder="Nome" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/><select className="w-full p-3 border rounded-lg" value={form.pastoral} onChange={e=>setForm({...form, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select><input className="w-full p-3 border rounded-lg font-mono" placeholder="QR Code ID" value={form.qrCodeValue} onChange={e=>setForm({...form, qrCodeValue:e.target.value})}/><div className="flex justify-end gap-2"><button onClick={()=>setModal(false)} className="px-4 py-2 text-gray-500">Cancelar</button><button onClick={save} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold">Salvar</button></div></div></div>}
+                    {modal && <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl animate-in"><h3 className="font-bold text-lg border-b pb-2">Cadastro de Aluno</h3><div className="space-y-3"><div><label className="text-[10px] font-bold text-gray-400 uppercase">Nome</label><input className="w-full p-3 border rounded-xl bg-gray-50 focus:bg-white transition-all" placeholder="Nome Completo" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Pastoral</label><select className="w-full p-3 border rounded-xl bg-gray-50" value={form.pastoral} onChange={e=>setForm({...form, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div><div><label className="text-[10px] font-bold text-gray-400 uppercase">Código QR (Opcional)</label><input className="w-full p-3 border rounded-xl bg-gray-50 font-mono" placeholder="ID do Crachá" value={form.qrCodeValue} onChange={e=>setForm({...form, qrCodeValue:e.target.value})}/></div></div><div className="flex justify-end gap-2 pt-2"><button onClick={()=>setModal(false)} className="px-4 py-2 text-gray-500 font-medium hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button><button onClick={save} className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20">Salvar</button></div></div></div>}
                 </div>
             );
         };
+
+        const Trash2 = ({size, className}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>;
 
         return (
           <div className="flex min-h-screen bg-gray-50">
             <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white transition-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl`}>
                 <div className="h-20 flex items-center px-6 border-b border-slate-800 font-bold text-xl bg-slate-950 gap-2"><div className="bg-blue-600 p-2 rounded-lg"><Church size={20}/></div> PastoralPass</div>
                 <nav className="flex-1 p-4 space-y-2">
-                    {[{id:'dashboard', icon:Home, label:'Painel'},{id:'students', icon:Users, label:'Alunos'},{id:'reports', icon:ClipboardList, label:'Relatórios'}].map(i => (
-                        <button key={i.id} onClick={()=>{setActiveTab(i.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${activeTab === i.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><i.icon size={20}/> {i.label}</button>
+                    {[{id:'dashboard', icon:Home, label:'Painel Principal'},{id:'students', icon:Users, label:'Lista de Alunos'},{id:'reports', icon:ClipboardList, label:'Relatórios'}].map(i => (
+                        <button key={i.id} onClick={()=>{setActiveTab(i.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all duration-200 ${activeTab === i.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><i.icon size={20}/> {i.label}</button>
                     ))}
                 </nav>
             </aside>
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                <header className="h-16 bg-white border-b flex items-center px-4 justify-between md:hidden shadow-sm"><button onClick={()=>setSidebarOpen(true)} className="p-2 text-gray-600"><Database size={24}/></button><span className="font-bold text-blue-900">PastoralPass</span><div className="w-8"></div></header>
-                <div className="flex-1 overflow-auto p-4 md:p-8 pb-32">
-                    {activeTab === 'dashboard' && <Dashboard />}
-                    {activeTab === 'students' && <StudentsList />}
-                    {activeTab === 'reports' && <div className="p-8 text-center text-gray-400 bg-white rounded-2xl border">Em breve: Relatórios Avançados</div>}
+                <header className="h-16 bg-white border-b flex items-center px-4 justify-between md:hidden shadow-sm"><button onClick={()=>setSidebarOpen(true)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"><Database size={24}/></button><span className="font-bold text-blue-900 tracking-tight">PastoralPass</span><div className="w-8"></div></header>
+                <div className="flex-1 overflow-auto p-4 md:p-8 pb-36">
+                    <div className="max-w-6xl mx-auto">
+                        {activeTab === 'dashboard' && <Dashboard />}
+                        {activeTab === 'students' && <StudentsList />}
+                        {activeTab === 'reports' && <div className="p-12 text-center text-gray-400 bg-white rounded-3xl border border-dashed border-gray-300 animate-in"><ClipboardList size={48} className="mx-auto mb-4 opacity-20"/> <p className="font-medium">Módulo de Relatórios</p><p className="text-xs">Para visualizar presenças, utilize o Painel Principal.</p></div>}
+                    </div>
                 </div>
                 
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/90 backdrop-blur-xl p-3 rounded-3xl shadow-2xl border border-white/50 z-30">
-                    <button onClick={()=>{setSelectedScanMode('AULA'); setScannerOpen(true)}} className="bg-blue-600 text-white flex items-center gap-3 px-6 py-4 rounded-2xl font-bold hover:bg-blue-700 transition active:scale-95 shadow-xl shadow-blue-500/20"><BookOpen size={20}/> CHAMADA AULA</button>
-                    <div className="w-px h-8 bg-gray-200"></div>
-                    <button onClick={()=>{setSelectedScanMode('MISSA'); setScannerOpen(true)}} className="bg-purple-600 text-white flex items-center gap-3 px-6 py-4 rounded-2xl font-bold hover:bg-purple-700 transition active:scale-95 shadow-xl shadow-purple-500/20"><Church size={20}/> MISSA</button>
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 items-center bg-white/70 backdrop-blur-2xl p-3 rounded-[32px] shadow-2xl border border-white/40 z-30 ring-1 ring-black/5">
+                    <button onClick={()=>{setSelectedScanMode('AULA'); setScannerOpen(true)}} className="bg-blue-600 text-white flex items-center gap-3 px-8 py-5 rounded-3xl font-bold hover:bg-blue-700 transition active:scale-95 shadow-xl shadow-blue-500/30"><BookOpen size={20}/> AULA</button>
+                    <div className="w-px h-10 bg-gray-200"></div>
+                    <button onClick={()=>{setSelectedScanMode('MISSA'); setScannerOpen(true)}} className="bg-purple-600 text-white flex items-center gap-3 px-8 py-5 rounded-3xl font-bold hover:bg-purple-700 transition active:scale-95 shadow-xl shadow-purple-500/30"><Church size={20}/> MISSA</button>
                 </div>
             </main>
             {scannerOpen && <ScannerModal mode={selectedScanMode} onClose={() => setScannerOpen(false)} />}
