@@ -56,7 +56,6 @@
       .btn-primary { background: #2563eb; color: white; border-radius: 20px; font-weight: 800; transition: all 0.2s; }
       .btn-primary:active { transform: scale(0.95); opacity: 0.9; }
       
-      /* Ocultar scrollbar */
       ::-webkit-scrollbar { display: none; }
     </style>
   </head>
@@ -153,14 +152,29 @@
           setInitializing(false);
         }, []);
 
-        const handleSaveConfig = (jsonStr) => {
+        const handleSaveConfig = (rawText) => {
             try {
+                // Tenta encontrar o objeto { ... } dentro do texto colado
+                const match = rawText.match(/\{[\s\S]*\}/);
+                if (!match) throw new Error("Objeto não encontrado");
+                
+                let jsonStr = match[0];
+                
+                // Limpeza para tornar o JS do console em JSON válido
+                // 1. Garante aspas duplas em volta das chaves (keys)
+                jsonStr = jsonStr.replace(/(\w+):/g, '"$1":');
+                // 2. Garante aspas duplas em volta dos valores de string (substitui simples por duplas se houver)
+                jsonStr = jsonStr.replace(/'/g, '"');
+                // 3. Remove vírgulas extras no final antes de fechar a chave (trailing commas)
+                jsonStr = jsonStr.replace(/,(\s*[\}\]])/g, '$1');
+
                 const firebaseConf = JSON.parse(jsonStr);
                 const fullConfig = { firebase: firebaseConf };
                 localStorage.setItem(CONFIG_KEY, JSON.stringify(fullConfig));
                 initializeFirebase(fullConfig);
             } catch(e) {
-                alert("Código inválido. Certifique-se de copiar o objeto JSON do Firebase.");
+                console.error(e);
+                alert("Falha ao processar o código. Certifique-se de copiar o bloco inteiro que começa com '{' e termina com '}'.");
             }
         };
 
@@ -187,13 +201,13 @@
                         <div className="text-center space-y-4">
                             <div className="bg-blue-600 w-20 h-20 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/20"><Database className="text-white" size={40}/></div>
                             <h1 className="text-white font-black text-3xl tracking-tighter">Configuração Inicial</h1>
-                            <p className="text-slate-500 text-sm font-medium">Cole abaixo o código de configuração do Firebase para ativar seu banco de dados na nuvem.</p>
+                            <p className="text-slate-500 text-sm font-medium">Pode colar o código completo do Firebase abaixo. O sistema vai extrair os dados automaticamente.</p>
                         </div>
                         <div className="bg-slate-900/50 p-2 rounded-[32px] border border-white/5 backdrop-blur-xl">
                             <textarea 
                                 value={val} 
                                 onChange={e=>setVal(e.target.value)} 
-                                placeholder='{ "apiKey": "...", "authDomain": "...", ... }'
+                                placeholder='Cole aqui o const firebaseConfig = { ... };'
                                 className="w-full h-48 bg-transparent text-blue-400 font-mono text-xs p-6 outline-none resize-none"
                             ></textarea>
                         </div>
@@ -203,7 +217,6 @@
                         >
                             CONECTAR NUVEM
                         </button>
-                        <p className="text-center text-[10px] text-slate-600 font-black uppercase tracking-widest">Acesse o Console Firebase para obter este código.</p>
                     </div>
                 </div>
             );
