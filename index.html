@@ -4,12 +4,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-    <title>PastoralPass - 2026 Ready</title>
+    <title>PastoralPass - Gestão 2026</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e3a8a">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
@@ -30,31 +30,31 @@
     </script>
     
     <style>
-      body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+      body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; overflow-x: hidden; color: #1e293b; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       .animate-in { animation: fadeIn 0.3s ease-out; }
       .animate-slide-up { animation: slideUp 0.3s ease-out; }
       
-      .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+      .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
       
-      #reader { width: 100%; border-radius: 0; overflow: hidden; background: black; }
+      #reader { width: 100%; border-radius: 0; overflow: hidden; background: #000; }
       #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
       
       .scan-success-flash { animation: flashGreen 0.6s ease-out; }
       @keyframes flashGreen { 0% { box-shadow: inset 0 0 100px rgba(34, 197, 94, 0.8); } 100% { box-shadow: inset 0 0 0px rgba(34, 197, 94, 0); } }
       
-      ::-webkit-scrollbar { width: 5px; }
-      ::-webkit-scrollbar-track { background: #f1f5f9; }
-      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      .custom-card { background: white; border-radius: 32px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+      .btn-primary { background: #2563eb; color: white; border-radius: 20px; font-weight: 800; transition: all 0.2s; }
+      .btn-primary:active { transform: scale(0.95); opacity: 0.9; }
     </style>
   </head>
   <body>
     <div id="root">
-      <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
+      <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-400 font-medium">
         <div class="loader mb-4"></div>
-        <p>Carregando PastoralPass...</p>
+        <p>Iniciando PastoralPass...</p>
       </div>
     </div>
 
@@ -63,7 +63,7 @@
       import ReactDOM from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
       import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, query, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
-      import { Home, Users, ClipboardList, Scan, X, CheckCircle, AlertTriangle, Plus, Search, ScanLine, Settings, Database, ArrowRight, Edit2, BookOpen, Church, Lock, History, Trash2, Filter, Calendar, TrendingUp, ChevronRight, UserPlus, Keyboard } from 'lucide-react';
+      import { Home, Users, ClipboardList, Scan, X, CheckCircle, AlertTriangle, Plus, Search, ScanLine, Settings, Database, ArrowRight, Edit2, BookOpen, Church, History, Trash2, Filter, Calendar, TrendingUp, ChevronRight, UserPlus, Keyboard, Hash } from 'lucide-react';
       import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
       const CONFIG_KEY = 'pastoral_config_v7';
@@ -72,7 +72,6 @@
       const CameraZone = React.memo(({ onScanSuccess, paused }) => {
           const callbackRef = useRef(onScanSuccess);
           useEffect(() => { callbackRef.current = onScanSuccess; }, [onScanSuccess]);
-
           useEffect(() => {
               if (paused) return;
               let html5QrCode = null;
@@ -87,7 +86,6 @@
               }, 300);
               return () => { clearTimeout(timer); if(html5QrCode) html5QrCode.stop().then(() => html5QrCode.clear()).catch(()=>{}); };
           }, [paused]);
-
           return <div id="reader" className="w-full h-full min-h-[40vh]"></div>;
       });
 
@@ -116,11 +114,9 @@
               const firebaseApp = initializeApp(parsed.firebase);
               const firestore = getFirestore(firebaseApp);
               setDb(firestore);
-
               onSnapshot(collection(firestore, 'alunos'), (snap) => {
                   setStudents(snap.docs.map(d => ({ id: d.id, ...d.data() })));
               });
-
               onSnapshot(query(collection(firestore, 'presencas'), orderBy('timestamp', 'desc')), (snap) => {
                   setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
               });
@@ -138,55 +134,92 @@
 
         const handleMarkAttendance = async (scannedCode, type) => {
           const cleanCode = scannedCode.trim().toLowerCase();
-          const student = students.find(s => {
-              const dbCode = (s.qrCodeValue || '').trim().toLowerCase();
-              return dbCode === cleanCode;
-          });
+          const student = students.find(s => (s.qrCodeValue || '').trim().toLowerCase() === cleanCode);
           if (!student) throw new Error("ID_NAO_ENCONTRADO");
           return await markAttendanceInternal(student.id, student.name, student.pastoral, type);
         };
 
-        if (!config) return <div className="h-screen flex items-center justify-center p-8 text-center"><p className="text-gray-400">PastoralPass Cloud v7.8</p></div>;
-        if (!db) return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Conectando...</div>;
+        if (!config) return <div className="h-screen flex items-center justify-center p-8 text-center text-gray-400">PastoralPass v7.9</div>;
+        if (!db) return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Conectando Nuvem...</div>;
+
+        const StudentDetailModal = ({ studentInfo, onClose }) => {
+            // studentInfo contém { id, name, pastoral } mesmo que o aluno não exista mais na coleção "alunos"
+            const history = attendance.filter(a => a.studentId === studentInfo.id);
+            return (
+                <div className="fixed inset-0 bg-black/70 z-[300] flex items-end md:items-center justify-center backdrop-blur-md animate-in">
+                    <div className="bg-white w-full max-w-xl rounded-t-[40px] md:rounded-[40px] flex flex-col h-[85vh] md:h-[70vh] shadow-2xl overflow-hidden animate-slide-up">
+                        <div className="p-8 border-b flex justify-between items-center bg-slate-50">
+                            <div>
+                                <h3 className="font-black text-xl text-slate-900 uppercase leading-none">{studentInfo.name}</h3>
+                                <p className="text-[10px] font-black text-blue-600 uppercase mt-2 tracking-widest bg-blue-50 px-3 py-1 rounded-full inline-block border border-blue-100">{studentInfo.pastoral}</p>
+                            </div>
+                            <button onClick={onClose} className="bg-white border p-3 rounded-full text-slate-400 hover:text-slate-900 shadow-sm transition-all"><X size={24}/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-green-50 p-6 rounded-[32px] border border-green-100"><p className="text-[10px] font-black text-green-600 uppercase mb-1 tracking-widest">Aulas</p><p className="text-4xl font-black text-green-700">{history.filter(a => a.type !== 'MISSA').length}</p></div>
+                                <div className="bg-purple-50 p-6 rounded-[32px] border border-purple-100"><p className="text-[10px] font-black text-purple-600 uppercase mb-1 tracking-widest">Missas</p><p className="text-4xl font-black text-purple-700">{history.filter(a => a.type === 'MISSA').length}</p></div>
+                            </div>
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Linha do Tempo</h4>
+                                <div className="space-y-3">
+                                    {history.map(entry => (
+                                        <div key={entry.id} className="flex items-center justify-between p-5 bg-slate-50 rounded-[24px] border border-slate-100">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${entry.type === 'MISSA' ? 'bg-purple-600 text-white' : 'bg-green-600 text-white'}`}>
+                                                    {entry.type === 'MISSA' ? <Church size={20}/> : <BookOpen size={20}/>}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{entry.type || 'AULA'}</p>
+                                                    <p className="text-xs text-slate-400 font-medium">{new Date(entry.timestamp).toLocaleDateString('pt-BR')} • {new Date(entry.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={async () => { if(confirm('Excluir este registro?')) await deleteDoc(doc(db, 'presencas', entry.id)) }} className="text-slate-300 hover:text-red-500 p-2"><Trash2 size={18}/></button>
+                                        </div>
+                                    ))}
+                                    {history.length === 0 && <p className="text-center py-10 text-slate-400 italic">Nenhum registro encontrado.</p>}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         const ManualEntryModal = ({ onClose }) => {
             const [code, setCode] = useState('');
             const [mode, setMode] = useState('AULA');
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
-
             const submit = async () => {
                 if(!code) return;
-                setLoading(true);
-                setError(null);
+                setLoading(true); setError(null);
                 try {
                     await handleMarkAttendance(code, mode);
-                    alert('Presença registrada com sucesso!');
-                    onClose();
+                    alert('Presença registrada com sucesso!'); onClose();
                 } catch(e) {
-                    setError(e.message === "ID_NAO_ENCONTRADO" ? "Número de crachá não cadastrado." : e.message);
+                    setError(e.message === "ID_NAO_ENCONTRADO" ? "Crachá não cadastrado no sistema." : e.message);
                 } finally { setLoading(false); }
             };
-
             return (
                 <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in">
-                    <div className="bg-white rounded-[40px] p-10 w-full max-w-sm space-y-6 shadow-2xl">
+                    <div className="bg-white rounded-[40px] p-10 w-full max-w-sm space-y-6 shadow-2xl animate-slide-up">
                         <div className="text-center">
-                            <div className="bg-slate-100 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 text-slate-600"><Keyboard size={32}/></div>
-                            <h3 className="font-black text-xl">Registro Manual</h3>
-                            <p className="text-gray-400 text-xs font-bold uppercase mt-1">Digite o número do crachá</p>
+                            <div className="bg-slate-100 w-16 h-16 rounded-[24px] flex items-center justify-center mx-auto mb-4 text-slate-600 shadow-inner"><Keyboard size={32}/></div>
+                            <h3 className="font-black text-xl uppercase tracking-tighter">Chamada Manual</h3>
+                            <p className="text-slate-400 text-[10px] font-black uppercase mt-1 tracking-widest">Digite o número do crachá</p>
                         </div>
                         <div className="space-y-4">
-                            <input autoFocus type="text" placeholder="Número do crachá" value={code} onChange={e=>setCode(e.target.value)} className="w-full p-5 border-2 border-gray-100 rounded-2xl bg-gray-50 focus:bg-white focus:border-blue-500 outline-none font-black text-center text-2xl tracking-widest"/>
-                            <div className="flex bg-gray-100 p-1 rounded-2xl">
-                                <button onClick={()=>setMode('AULA')} className={`flex-1 py-3 rounded-xl text-[10px] font-black transition-all ${mode === 'AULA' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>AULA</button>
-                                <button onClick={()=>setMode('MISSA')} className={`flex-1 py-3 rounded-xl text-[10px] font-black transition-all ${mode === 'MISSA' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-400'}`}>MISSA</button>
+                            <input autoFocus type="text" placeholder="Ex: 001" value={code} onChange={e=>setCode(e.target.value)} className="w-full p-6 border-2 border-slate-100 rounded-[24px] bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-black text-center text-3xl tracking-[0.2em] shadow-inner transition-all"/>
+                            <div className="flex bg-slate-100 p-1.5 rounded-[20px]">
+                                <button onClick={()=>setMode('AULA')} className={`flex-1 py-3 rounded-[14px] text-[10px] font-black transition-all ${mode === 'AULA' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`}>AULA</button>
+                                <button onClick={()=>setMode('MISSA')} className={`flex-1 py-3 rounded-[14px] text-[10px] font-black transition-all ${mode === 'MISSA' ? 'bg-white shadow-sm text-purple-600' : 'text-slate-400'}`}>MISSA</button>
                             </div>
-                            {error && <p className="text-red-500 text-xs font-bold text-center bg-red-50 p-2 rounded-lg">{error}</p>}
+                            {error && <p className="text-red-500 text-xs font-black text-center bg-red-50 p-4 rounded-2xl border border-red-100 animate-in">{error}</p>}
                         </div>
-                        <div className="flex gap-4">
-                            <button onClick={onClose} className="flex-1 py-4 font-black text-gray-400">CANCELAR</button>
-                            <button onClick={submit} disabled={loading} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl shadow-slate-900/20">{loading ? '...' : 'REGISTRAR'}</button>
+                        <div className="flex gap-4 pt-2">
+                            <button onClick={onClose} className="flex-1 py-4 font-black text-slate-400 text-xs uppercase tracking-widest">CANCELAR</button>
+                            <button onClick={submit} disabled={loading} className="flex-1 py-4 bg-slate-900 text-white rounded-[20px] font-black shadow-xl text-xs uppercase tracking-widest transition-all active:scale-95">{loading ? '...' : 'REGISTRAR'}</button>
                         </div>
                     </div>
                 </div>
@@ -209,42 +242,47 @@
 
             return (
                 <div className="space-y-6 animate-in">
-                    <div className="flex justify-between items-end"><h2 className="text-2xl font-bold text-gray-800 tracking-tight">Painel Principal</h2><div className="text-[10px] font-black text-green-600 uppercase flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-full border border-green-100"><div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> Cloud Sync</div></div>
+                    <div className="flex justify-between items-end">
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Painel Inicial</h2>
+                        <div className="text-[10px] font-black text-blue-600 uppercase flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full border border-blue-100 shadow-sm">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div> Sincronizado
+                        </div>
+                    </div>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-white p-6 rounded-[32px] border shadow-sm"><p className="text-gray-400 text-[10px] font-black uppercase mb-1">Alunos</p><h3 className="text-3xl font-black text-blue-600">{students.length}</h3></div>
-                        <div className="bg-white p-6 rounded-[32px] border shadow-sm"><p className="text-gray-400 text-[10px] font-black uppercase mb-1">Aula Hoje</p><h3 className="text-3xl font-black text-green-600">{pAula}</h3></div>
-                        <div className="bg-white p-6 rounded-[32px] border shadow-sm"><p className="text-gray-400 text-[10px] font-black uppercase mb-1">Missa Hoje</p><h3 className="text-3xl font-black text-purple-600">{pMissa}</h3></div>
-                        <div className="bg-white p-6 rounded-[32px] border shadow-sm"><p className="text-gray-400 text-[10px] font-black uppercase mb-1">Presença</p><h3 className="text-3xl font-black text-slate-700">{students.length ? Math.round((pAula/students.length)*100) : 0}%</h3></div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="custom-card p-6 flex flex-col justify-between"><p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Total Alunos</p><h3 className="text-4xl font-black text-blue-600">{students.length}</h3></div>
+                        <div className="custom-card p-6 flex flex-col justify-between"><p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Aula de Hoje</p><h3 className="text-4xl font-black text-green-600">{pAula}</h3></div>
+                        <div className="custom-card p-6 flex flex-col justify-between"><p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Missa de Hoje</p><h3 className="text-4xl font-black text-purple-600">{pMissa}</h3></div>
+                        <div className="custom-card p-6 flex flex-col justify-between"><p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Frequência</p><h3 className="text-4xl font-black text-slate-800">{students.length ? Math.round((pAula/students.length)*100) : 0}%</h3></div>
                     </div>
 
-                    <div className="bg-white p-8 rounded-[40px] border shadow-sm">
-                        <h4 className="text-xs font-black text-gray-400 uppercase mb-8 flex items-center gap-2"><TrendingUp size={16}/> Histórico Semanal</h4>
+                    <div className="custom-card p-8">
+                        <h4 className="text-xs font-black text-slate-400 uppercase mb-8 flex items-center gap-2 tracking-widest"><TrendingUp size={16}/> Histórico Semanal</h4>
                         <div className="h-[250px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} dy={10}/>
-                                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '20px', border: 'none'}}/>
-                                    <Bar dataKey="value" fill="#3b82f6" radius={[12,12,0,0]} barSize={40}/>
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 700}} dy={10}/>
+                                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}/>
+                                    <Bar dataKey="value" fill="#3b82f6" radius={[10,10,0,0]} barSize={35}/>
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Dashboard Action Area - Moved here from FAB */}
-                    <div className="bg-slate-900 p-8 rounded-[40px] shadow-2xl space-y-4">
-                        <h3 className="text-white font-black text-xs uppercase tracking-[0.2em] opacity-40 text-center">Ações de Chamada</h3>
+                    {/* Central de Comando - Somente Aqui */}
+                    <div className="bg-slate-900 p-8 rounded-[48px] shadow-2xl space-y-6">
+                        <h3 className="text-white font-black text-xs uppercase tracking-[0.3em] opacity-40 text-center">Central de Chamadas</h3>
                         <div className="grid grid-cols-2 gap-4">
-                            <button onClick={()=>{setSelectedScanMode('AULA'); setScannerOpen(true)}} className="bg-blue-600 text-white flex flex-col items-center justify-center gap-3 p-6 rounded-[32px] font-black hover:bg-blue-700 active:scale-95 transition-all shadow-xl shadow-blue-500/20">
-                                <BookOpen size={28}/> <span className="text-xs tracking-wider uppercase">SCAN AULA</span>
+                            <button onClick={()=>{setSelectedScanMode('AULA'); setScannerOpen(true)}} className="bg-blue-600 text-white flex flex-col items-center justify-center gap-3 p-8 rounded-[36px] font-black hover:bg-blue-700 active:scale-95 transition-all shadow-xl shadow-blue-500/20">
+                                <Scan size={32}/> <span className="text-[10px] tracking-widest uppercase">SCAN AULA</span>
                             </button>
-                            <button onClick={()=>{setSelectedScanMode('MISSA'); setScannerOpen(true)}} className="bg-purple-600 text-white flex flex-col items-center justify-center gap-3 p-6 rounded-[32px] font-black hover:bg-purple-700 active:scale-95 transition-all shadow-xl shadow-purple-500/20">
-                                <Church size={28}/> <span className="text-xs tracking-wider uppercase">SCAN MISSA</span>
+                            <button onClick={()=>{setSelectedScanMode('MISSA'); setScannerOpen(true)}} className="bg-purple-600 text-white flex flex-col items-center justify-center gap-3 p-8 rounded-[36px] font-black hover:bg-purple-700 active:scale-95 transition-all shadow-xl shadow-purple-500/20">
+                                <Church size={32}/> <span className="text-[10px] tracking-widest uppercase">SCAN MISSA</span>
                             </button>
                         </div>
-                        <button onClick={()=>setManualOpen(true)} className="w-full bg-white/10 text-white flex items-center justify-center gap-3 p-5 rounded-[28px] font-black hover:bg-white/20 active:scale-95 transition-all text-sm uppercase tracking-widest border border-white/5">
-                            <Keyboard size={20}/> Registro Manual
+                        <button onClick={()=>setManualOpen(true)} className="w-full bg-white/10 text-white flex items-center justify-center gap-4 p-6 rounded-[30px] font-black hover:bg-white/20 active:scale-95 transition-all text-xs uppercase tracking-[0.2em] border border-white/5">
+                            <Keyboard size={24}/> Registro Manual
                         </button>
                     </div>
                 </div>
@@ -254,7 +292,8 @@
         const ReportsView = () => {
             const [search, setSearch] = useState('');
             const [viewMode, setViewMode] = useState('summary');
-            const [selectedId, setSelectedId] = useState(null);
+            const [selectedStudent, setSelectedStudent] = useState(null);
+
             const studentSummary = useMemo(() => {
                 const summary = {};
                 attendance.forEach(a => {
@@ -268,24 +307,24 @@
             return (
                 <div className="space-y-6 animate-in pb-10">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <h2 className="text-2xl font-bold">Relatórios</h2>
-                        <div className="flex bg-white p-1 rounded-2xl border shadow-sm">
-                            <button onClick={()=>setViewMode('summary')} className={`px-5 py-2.5 rounded-xl text-[10px] font-black transition-all ${viewMode === 'summary' ? 'bg-blue-600 text-white shadow-xl' : 'text-gray-400'}`}>RESUMO</button>
-                            <button onClick={()=>setViewMode('list')} className={`px-5 py-2.5 rounded-xl text-[10px] font-black transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-xl' : 'text-gray-400'}`}>HISTÓRICO</button>
+                        <h2 className="text-3xl font-black tracking-tighter">Relatórios</h2>
+                        <div className="flex bg-white p-1.5 rounded-[20px] border shadow-sm">
+                            <button onClick={()=>setViewMode('summary')} className={`px-6 py-3 rounded-[15px] text-[10px] font-black transition-all ${viewMode === 'summary' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>RESUMO</button>
+                            <button onClick={()=>setViewMode('list')} className={`px-6 py-3 rounded-[15px] text-[10px] font-black transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>HISTÓRICO</button>
                         </div>
                     </div>
-                    <div className="bg-white p-5 rounded-3xl border shadow-sm flex items-center gap-3"><Search className="text-gray-400" size={20}/><input type="text" placeholder="Filtrar aluno..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full outline-none font-medium text-sm"/></div>
+                    <div className="bg-white p-5 rounded-[24px] border shadow-sm flex items-center gap-4 focus-within:ring-2 ring-blue-500/20 transition-all"><Search className="text-slate-400" size={20}/><input type="text" placeholder="Filtrar por nome do aluno..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full outline-none font-semibold text-sm"/></div>
                     
                     {viewMode === 'list' ? (
-                        <div className="bg-white rounded-[32px] border shadow-sm overflow-hidden overflow-x-auto">
+                        <div className="custom-card overflow-hidden overflow-x-auto">
                             <table className="w-full text-left text-sm">
-                                <thead className="bg-gray-50 border-b text-[10px] uppercase text-gray-400 font-black tracking-widest"><tr><th className="p-5">Aluno</th><th className="p-5">Tipo</th><th className="p-5">Data/Hora</th><th className="p-5 text-right">Ação</th></tr></thead>
-                                <tbody className="divide-y divide-gray-100">{attendance.filter(a => a.studentName.toLowerCase().includes(search.toLowerCase())).map(a => (
-                                    <tr key={a.id} className="hover:bg-blue-50/50">
-                                        <td className="p-5 font-bold text-slate-700"><div>{a.studentName}</div><div className="text-[9px] text-blue-500 font-black uppercase tracking-tighter">{a.pastoral}</div></td>
-                                        <td className="p-5"><span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${a.type === 'MISSA' ? 'bg-purple-100 text-purple-600' : 'bg-green-100 text-green-600'}`}>{a.type || 'AULA'}</span></td>
-                                        <td className="p-5 text-gray-500 text-[11px] font-medium">{new Date(a.timestamp).toLocaleDateString('pt-BR')} <span className="text-gray-300 font-normal">{new Date(a.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</span></td>
-                                        <td className="p-5 text-right"><button onClick={async () => { if(confirm('Excluir?')) await deleteDoc(doc(db, 'presencas', a.id)) }} className="text-red-200 hover:text-red-500 p-2"><Trash2 size={18}/></button></td>
+                                <thead className="bg-slate-50 border-b text-[10px] uppercase text-slate-400 font-black tracking-widest"><tr><th className="p-6">Aluno</th><th className="p-6">Tipo</th><th className="p-6">Data/Hora</th><th className="p-6 text-right">Ação</th></tr></thead>
+                                <tbody className="divide-y divide-slate-100">{attendance.filter(a => a.studentName.toLowerCase().includes(search.toLowerCase())).map(a => (
+                                    <tr key={a.id} className="hover:bg-slate-50/80 transition-colors">
+                                        <td className="p-6 font-bold text-slate-800"><div>{a.studentName}</div><div className="text-[9px] text-blue-500 font-black uppercase tracking-widest">{a.pastoral}</div></td>
+                                        <td className="p-6"><span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${a.type === 'MISSA' ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-green-100 text-green-600 border border-green-200'}`}>{a.type || 'AULA'}</span></td>
+                                        <td className="p-6 text-slate-500 text-[11px] font-bold">{new Date(a.timestamp).toLocaleDateString('pt-BR')} <span className="text-slate-300 font-normal ml-1">{new Date(a.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</span></td>
+                                        <td className="p-6 text-right"><button onClick={async () => { if(confirm('Excluir?')) await deleteDoc(doc(db, 'presencas', a.id)) }} className="text-slate-200 hover:text-red-500 transition-colors p-2"><Trash2 size={20}/></button></td>
                                     </tr>
                                 ))}</tbody>
                             </table>
@@ -293,16 +332,17 @@
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {studentSummary.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
-                                <div key={s.id} onClick={() => setSelectedId(s.id)} className="bg-white p-6 rounded-[32px] border shadow-sm hover:border-blue-400 transition-all cursor-pointer group active:scale-[0.98]">
-                                    <div className="flex justify-between items-start mb-4"><div><h4 className="font-bold text-slate-800 text-base">{s.name}</h4><p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">{s.pastoral}</p></div><ChevronRight size={18} className="text-gray-300 group-hover:text-blue-500 transition-all"/></div>
-                                    <div className="flex gap-4 border-t pt-4">
-                                        <div className="flex-1"><p className="text-[9px] font-black text-gray-300 uppercase">Aulas</p><p className="text-xl font-black text-green-600">{s.aula}</p></div>
-                                        <div className="flex-1 text-right"><p className="text-[9px] font-black text-gray-300 uppercase">Missas</p><p className="text-xl font-black text-purple-600">{s.missa}</p></div>
+                                <div key={s.id} onClick={() => setSelectedStudent(s)} className="custom-card p-6 hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer group active:scale-[0.97]">
+                                    <div className="flex justify-between items-start mb-6"><div><h4 className="font-black text-slate-800 text-base uppercase tracking-tighter">{s.name}</h4><p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{s.pastoral}</p></div><div className="bg-slate-50 p-2 rounded-xl text-slate-300 group-hover:text-blue-600 group-hover:bg-blue-50 transition-all"><ChevronRight size={20}/></div></div>
+                                    <div className="flex gap-4 border-t border-slate-50 pt-6">
+                                        <div className="flex-1"><p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Aulas</p><p className="text-2xl font-black text-green-600">{s.aula}</p></div>
+                                        <div className="flex-1 text-right"><p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Missas</p><p className="text-2xl font-black text-purple-600">{s.missa}</p></div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
+                    {selectedStudent && <StudentDetailModal studentInfo={selectedStudent} onClose={() => setSelectedStudent(null)} />}
                 </div>
             );
         };
@@ -318,18 +358,18 @@
                 setModal(false);
             };
             return (
-                <div className="space-y-4 animate-in">
-                    <div className="flex justify-between items-center"><h2 className="text-2xl font-bold tracking-tight">Alunos</h2><button onClick={() => {setForm({id:null, name:'', pastoral: PastoralType.CATEQUESE, qrCodeValue:''}); setModal(true)}} className="bg-blue-600 text-white px-6 py-4 rounded-2xl flex items-center gap-2 text-sm font-black shadow-xl hover:bg-blue-700 transition-all"><Plus size={20}/> ADICIONAR</button></div>
-                    <div className="bg-white rounded-2xl border shadow-sm p-5 flex items-center gap-3"><Search className="text-gray-400" size={20}/><input type="text" placeholder="Buscar aluno..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full outline-none font-medium text-sm"/></div>
+                <div className="space-y-6 animate-in">
+                    <div className="flex justify-between items-center"><h2 className="text-3xl font-black tracking-tighter">Alunos</h2><button onClick={() => {setForm({id:null, name:'', pastoral: PastoralType.CATEQUESE, qrCodeValue:''}); setModal(true)}} className="bg-blue-600 text-white px-8 py-5 rounded-[24px] flex items-center gap-3 text-xs font-black shadow-xl hover:bg-blue-700 transition-all uppercase tracking-widest"><Plus size={20}/> Adicionar</button></div>
+                    <div className="bg-white rounded-[24px] border shadow-sm p-5 flex items-center gap-4"><Search className="text-slate-400" size={20}/><input type="text" placeholder="Buscar por nome..." value={search} onChange={e=>setSearch(e.target.value)} className="w-full outline-none font-semibold text-sm"/></div>
                     <div className="grid gap-3">
                         {students.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
-                            <div key={s.id} className="bg-white p-6 rounded-[32px] border shadow-sm flex justify-between items-center group">
-                                <div><p className="font-bold text-slate-800 leading-tight">{s.name}</p><p className="text-[10px] font-black text-blue-500 uppercase mt-1 tracking-tight">{s.pastoral} • ID: {s.qrCodeValue}</p></div>
-                                <div className="flex gap-1"><button onClick={() => {setForm(s); setModal(true)}} className="text-slate-300 hover:text-blue-600 p-3 rounded-full hover:bg-blue-50 transition-colors"><Edit2 size={18}/></button><button onClick={async () => { if(confirm(`Excluir ${s.name}?`)) await deleteDoc(doc(db, 'alunos', s.id)) }} className="text-slate-300 hover:text-red-500 p-3 rounded-full hover:bg-red-50 transition-colors"><Trash2 size={18}/></button></div>
+                            <div key={s.id} className="custom-card p-6 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                                <div><p className="font-black text-slate-800 uppercase tracking-tight">{s.name}</p><p className="text-[10px] font-black text-blue-600 uppercase mt-1 tracking-widest">{s.pastoral} <span className="text-slate-300 mx-2">•</span> Crachá: {s.qrCodeValue}</p></div>
+                                <div className="flex gap-2"><button onClick={() => {setForm(s); setModal(true)}} className="text-slate-300 hover:text-blue-600 p-3 rounded-2xl hover:bg-blue-50 transition-all"><Edit2 size={20}/></button><button onClick={async () => { if(confirm(`Excluir ${s.name}?`)) await deleteDoc(doc(db, 'alunos', s.id)) }} className="text-slate-300 hover:text-red-500 p-3 rounded-2xl hover:bg-red-50 transition-all"><Trash2 size={20}/></button></div>
                             </div>
                         ))}
                     </div>
-                    {modal && <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-in"><div className="bg-white rounded-[40px] p-10 w-full max-w-md space-y-6 shadow-2xl animate-slide-up"><h3 className="font-black text-xl border-b pb-6 uppercase text-slate-800">Dados do Aluno</h3><div className="space-y-4"><div><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Nome Completo</label><input className="w-full p-4 border rounded-2xl bg-gray-50 focus:bg-white outline-none" placeholder="João Silva" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/></div><div><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Pastoral</label><select className="w-full p-4 border rounded-2xl bg-gray-50 outline-none" value={form.pastoral} onChange={e=>setForm({...form, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div><div><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Número do Crachá (QR ID)</label><input className="w-full p-4 border rounded-2xl bg-gray-50 font-black tracking-widest" placeholder="Ex: 001" value={form.qrCodeValue} onChange={e=>setForm({...form, qrCodeValue:e.target.value})}/></div></div><div className="flex justify-end gap-4 pt-6"><button onClick={()=>setModal(false)} className="px-6 py-4 text-gray-500 font-black">CANCELAR</button><button onClick={save} className="px-10 py-4 bg-blue-600 text-white rounded-[24px] font-black shadow-xl">SALVAR</button></div></div></div>}
+                    {modal && <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in"><div className="bg-white rounded-[40px] p-10 w-full max-w-md space-y-8 shadow-2xl animate-slide-up"><h3 className="font-black text-2xl uppercase tracking-tighter border-b pb-6">Dados do Aluno</h3><div className="space-y-5"><div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome Completo</label><input autoFocus className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-bold" placeholder="João Silva" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/></div><div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Pastoral</label><select className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 outline-none font-bold" value={form.pastoral} onChange={e=>setForm({...form, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div><div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nº do Crachá (QR ID)</label><input className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 font-black tracking-[0.2em] uppercase" placeholder="001" value={form.qrCodeValue} onChange={e=>setForm({...form, qrCodeValue:e.target.value})}/></div></div><div className="flex justify-end gap-6 pt-8"><button onClick={()=>setModal(false)} className="px-6 py-4 text-slate-400 font-black text-xs uppercase tracking-widest">CANCELAR</button><button onClick={save} className="px-10 py-5 bg-blue-600 text-white rounded-[24px] font-black shadow-xl text-xs uppercase tracking-widest transition-all active:scale-95">SALVAR</button></div></div></div>}
                 </div>
             );
         };
@@ -338,15 +378,14 @@
             const [recent, setRecent] = useState([]);
             const [error, setError] = useState(null);
             const [flash, setFlash] = useState(false);
-            const [autoRegisterForm, setAutoRegisterForm] = useState(null); // { code, name, pastoral }
+            const [autoRegisterForm, setAutoRegisterForm] = useState(null);
             const lastScanTime = useRef(0);
             const lastScanCode = useRef('');
 
             const onScan = async (code) => {
                 const now = Date.now();
-                if (code === lastScanCode.current && now - lastScanTime.current < 2500) return;
-                lastScanTime.current = now;
-                lastScanCode.current = code;
+                if (code === lastScanCode.current && now - lastScanTime.current < 3000) return;
+                lastScanTime.current = now; lastScanCode.current = code;
                 try {
                     const name = await handleMarkAttendance(code, mode);
                     setRecent(prev => [{ name, time: new Date().toLocaleTimeString(), success: true }, ...prev].slice(0, 5));
@@ -367,12 +406,7 @@
             const submitAutoRegister = async () => {
                 if (!autoRegisterForm.name) return;
                 try {
-                    const newStudentDoc = await addDoc(collection(db, 'alunos'), { 
-                        name: autoRegisterForm.name, 
-                        pastoral: autoRegisterForm.pastoral, 
-                        qrCodeValue: autoRegisterForm.code, 
-                        createdAt: serverTimestamp() 
-                    });
+                    const newStudentDoc = await addDoc(collection(db, 'alunos'), { name: autoRegisterForm.name, pastoral: autoRegisterForm.pastoral, qrCodeValue: autoRegisterForm.code, createdAt: serverTimestamp() });
                     await markAttendanceInternal(newStudentDoc.id, autoRegisterForm.name, autoRegisterForm.pastoral, mode);
                     setRecent(prev => [{ name: `Novo: ${autoRegisterForm.name}`, time: new Date().toLocaleTimeString(), success: true }, ...prev].slice(0, 5));
                     setFlash(true); setTimeout(() => setFlash(false), 600);
@@ -381,47 +415,47 @@
             };
 
             return (
-                <div className="fixed inset-0 bg-black z-[110] flex flex-col animate-in overflow-hidden">
-                    <div className="p-4 z-[120] flex justify-between items-center absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 to-transparent">
-                         <div className="bg-white/10 backdrop-blur-lg px-5 py-2.5 rounded-full text-white font-black text-[10px] uppercase flex items-center gap-2 border border-white/10"><ScanLine size={16}/> {mode}</div>
-                         <button onClick={onClose} className="text-white bg-white/10 p-2.5 rounded-full backdrop-blur-lg"><X size={32}/></button>
+                <div className="fixed inset-0 bg-black z-[250] flex flex-col animate-in overflow-hidden">
+                    <div className="p-6 z-[300] flex justify-between items-center absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent">
+                         <div className="bg-white/10 backdrop-blur-xl px-6 py-3 rounded-full text-white font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-3 border border-white/10 shadow-2xl"><ScanLine size={20}/> {mode}</div>
+                         <button onClick={onClose} className="text-white bg-white/10 p-4 rounded-full backdrop-blur-xl hover:bg-white/20 transition-all"><X size={32}/></button>
                     </div>
                     <div className={`flex-1 relative transition-all duration-300 ${flash ? 'scan-success-flash' : ''}`}>
                         <CameraZone onScanSuccess={onScan} paused={!!autoRegisterForm} />
-                        {error && <div className="absolute top-28 left-6 right-6 bg-red-600 text-white p-5 rounded-3xl shadow-2xl flex items-center gap-4 animate-in border border-red-500 font-bold"><AlertTriangle size={28}/> {error}</div>}
+                        {error && <div className="absolute top-32 left-8 right-8 bg-red-600 text-white p-6 rounded-[32px] shadow-2xl flex items-center gap-5 animate-in border-4 border-white/20 font-bold"><AlertTriangle size={32}/> {error}</div>}
                         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                             <div className="w-64 h-64 border-2 border-white/30 rounded-[48px] relative"><div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-[48px]"></div><div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-[48px]"></div><div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-[48px]"></div><div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-[48px]"></div></div>
+                             <div className="w-72 h-72 border-2 border-white/20 rounded-[64px] relative shadow-[0_0_0_1000px_rgba(0,0,0,0.4)]"><div className="absolute top-0 left-0 w-16 h-16 border-t-8 border-l-8 border-blue-500 -mt-2 -ml-2 rounded-tl-[64px]"></div><div className="absolute top-0 right-0 w-16 h-16 border-t-8 border-r-8 border-blue-500 -mt-2 -mr-2 rounded-tr-[64px]"></div><div className="absolute bottom-0 left-0 w-16 h-16 border-b-8 border-l-8 border-blue-500 -mb-2 -ml-2 rounded-bl-[64px]"></div><div className="absolute bottom-0 right-0 w-16 h-16 border-b-8 border-r-8 border-blue-500 -mb-2 -mr-2 rounded-br-[64px]"></div></div>
                         </div>
                     </div>
 
                     {autoRegisterForm && (
-                        <div className="absolute inset-0 z-[150] bg-black/80 backdrop-blur-lg flex items-center justify-center p-6 animate-in">
-                            <div className="bg-white w-full max-w-sm rounded-[40px] p-8 space-y-6 shadow-2xl animate-slide-up">
+                        <div className="absolute inset-0 z-[400] bg-black/70 backdrop-blur-2xl flex items-center justify-center p-6 animate-in">
+                            <div className="bg-white w-full max-w-sm rounded-[48px] p-10 space-y-8 shadow-2xl animate-slide-up">
                                 <div className="text-center">
-                                    <div className="bg-blue-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"><UserPlus size={28}/></div>
-                                    <h3 className="font-black text-xl text-slate-800 uppercase">Novo Crachá</h3>
-                                    <p className="text-blue-600 text-3xl font-black mt-2 tracking-tighter">{autoRegisterForm.code}</p>
-                                    <p className="text-gray-400 text-[10px] font-black uppercase mt-1 tracking-widest">Código Identificado</p>
+                                    <div className="bg-blue-600 text-white w-16 h-16 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-xl"><UserPlus size={32}/></div>
+                                    <h3 className="font-black text-2xl text-slate-900 uppercase tracking-tighter">Vincular Crachá</h3>
+                                    <div className="flex items-center justify-center gap-2 mt-4 bg-slate-100 py-3 rounded-2xl border border-slate-200"><Hash size={24} className="text-blue-600"/><span className="text-blue-600 text-4xl font-black tracking-widest">{autoRegisterForm.code}</span></div>
+                                    <p className="text-slate-400 text-[10px] font-black uppercase mt-2 tracking-widest">Código Detectado</p>
                                 </div>
-                                <div className="space-y-4">
-                                    <div><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Nome do Aluno</label><input autoFocus placeholder="Digite o nome..." className="w-full p-4 border-2 border-gray-100 rounded-2xl bg-gray-50 focus:bg-white focus:border-blue-500 outline-none font-bold" value={autoRegisterForm.name} onChange={e=>setAutoRegisterForm({...autoRegisterForm, name:e.target.value})}/></div>
-                                    <div><label className="text-[10px] font-black text-gray-400 uppercase ml-1">Pastoral</label><select className="w-full p-4 border-2 border-gray-100 rounded-2xl bg-gray-50 outline-none" value={autoRegisterForm.pastoral} onChange={e=>setAutoRegisterForm({...autoRegisterForm, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div>
+                                <div className="space-y-5">
+                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Aluno</label><input autoFocus placeholder="Nome Completo" className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-bold shadow-inner" value={autoRegisterForm.name} onChange={e=>setAutoRegisterForm({...autoRegisterForm, name:e.target.value})}/></div>
+                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Pastoral</label><select className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 outline-none font-bold" value={autoRegisterForm.pastoral} onChange={e=>setAutoRegisterForm({...autoRegisterForm, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div>
                                 </div>
-                                <div className="flex gap-4 pt-2"><button onClick={()=>setAutoRegisterForm(null)} className="flex-1 py-4 font-black text-gray-400">FECHAR</button><button onClick={submitAutoRegister} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl">VINCULAR</button></div>
+                                <div className="flex gap-4 pt-4"><button onClick={()=>setAutoRegisterForm(null)} className="flex-1 py-5 font-black text-slate-400 text-xs tracking-widest">CANCELAR</button><button onClick={submitAutoRegister} className="flex-1 py-5 bg-blue-600 text-white rounded-[24px] font-black shadow-xl text-xs tracking-widest transition-all active:scale-95">SALVAR</button></div>
                             </div>
                         </div>
                     )}
 
-                    <div className="bg-slate-950 p-8 min-h-[300px] rounded-t-[48px] shadow-2xl z-[115] overflow-y-auto border-t border-white/5">
-                        <div className="flex items-center gap-2 text-slate-600 mb-6 text-[10px] font-black uppercase tracking-widest"><History size={16}/> Histórico da Chamada</div>
-                        <div className="space-y-3">
+                    <div className="bg-slate-950 p-10 min-h-[350px] rounded-t-[56px] shadow-2xl z-[350] overflow-y-auto border-t border-white/10">
+                        <div className="flex items-center gap-3 text-slate-500 mb-8 text-[10px] font-black uppercase tracking-[0.2em]"><History size={20}/> Histórico Local</div>
+                        <div className="space-y-4">
                             {recent.map((r, i) => (
-                                <div key={i} className={`flex justify-between items-center p-5 rounded-[24px] animate-in ${r.success ? 'bg-white/5 border-l-4 border-green-500' : 'bg-red-500/10 border-l-4 border-red-500'}`}>
-                                    <div className="flex flex-col"><span className={`text-sm font-bold ${r.success ? 'text-white' : 'text-red-400'}`}>{r.name}</span><span className="text-[10px] text-slate-500 uppercase font-black">{r.time}</span></div>
-                                    {r.success ? <CheckCircle size={24} className="text-green-500"/> : <X size={24} className="text-red-500"/>}
+                                <div key={i} className={`flex justify-between items-center p-6 rounded-[32px] animate-in shadow-xl ${r.success ? 'bg-white/5 border-l-4 border-green-500' : 'bg-red-500/10 border-l-4 border-red-500'}`}>
+                                    <div className="flex flex-col"><span className={`text-base font-black uppercase tracking-tight ${r.success ? 'text-white' : 'text-red-400'}`}>{r.name}</span><span className="text-[10px] text-slate-500 uppercase font-black mt-1 tracking-widest">{r.time}</span></div>
+                                    {r.success ? <div className="bg-green-500/20 p-2 rounded-full"><CheckCircle size={24} className="text-green-500"/></div> : <div className="bg-red-500/20 p-2 rounded-full"><X size={24} className="text-red-500"/></div>}
                                 </div>
                             ))}
-                            {recent.length === 0 && <div className="text-center py-10 text-slate-700 text-sm italic font-medium">Aguardando QR Code...</div>}
+                            {recent.length === 0 && <div className="text-center py-16 text-slate-700 text-sm italic font-medium">Aguardando leitura de QR Code...</div>}
                         </div>
                     </div>
                 </div>
@@ -429,27 +463,27 @@
         };
 
         return (
-          <div className="flex min-h-screen bg-gray-50 overflow-hidden">
-            {sidebarOpen && <div onClick={()=>setSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-[40] md:hidden backdrop-blur-sm animate-in"></div>}
+          <div className="flex min-h-screen bg-slate-50 overflow-hidden font-inter">
+            {sidebarOpen && <div onClick={()=>setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/60 z-[100] md:hidden backdrop-blur-sm animate-in"></div>}
             
-            <aside className={`fixed md:static inset-y-0 left-0 z-[50] w-72 bg-slate-900 text-white transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl`}>
-                <div className="h-28 flex items-center px-10 border-b border-white/5 font-black text-2xl bg-slate-950 gap-4"><div className="bg-blue-600 p-3 rounded-2xl shadow-lg"><Church size={28}/></div> PastoralPass</div>
-                <nav className="flex-1 p-6 space-y-4">
-                    {[{id:'dashboard', icon:Home, label:'Painel Inicial'},{id:'students', icon:Users, label:'Alunos Cadastrados'},{id:'reports', icon:ClipboardList, label:'Relatórios'}].map(i => (
-                        <button key={i.id} onClick={()=>{setActiveTab(i.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-4 p-5 rounded-[24px] transition-all duration-300 ${activeTab === i.id ? 'bg-blue-600 text-white shadow-2xl font-black scale-[1.02]' : 'text-slate-500 hover:text-white hover:bg-slate-800/50'}`}><i.icon size={24}/> {i.label}</button>
+            <aside className={`fixed md:static inset-y-0 left-0 z-[110] w-72 bg-slate-950 text-white transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl border-r border-white/5`}>
+                <div className="h-32 flex items-center px-10 border-b border-white/5 font-black text-2xl tracking-tighter gap-4"><div className="bg-blue-600 p-3.5 rounded-2xl shadow-xl shadow-blue-500/20"><Church size={32}/></div> PastoralPass</div>
+                <nav className="flex-1 p-8 space-y-5">
+                    {[{id:'dashboard', icon:Home, label:'Início'},{id:'students', icon:Users, label:'Alunos'},{id:'reports', icon:ClipboardList, label:'Relatórios'}].map(i => (
+                        <button key={i.id} onClick={()=>{setActiveTab(i.id); setSidebarOpen(false)}} className={`w-full flex items-center gap-5 p-5 rounded-[24px] transition-all duration-300 ${activeTab === i.id ? 'bg-blue-600 text-white shadow-2xl font-black scale-[1.03]' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}><i.icon size={24}/> <span className="text-sm font-black uppercase tracking-widest">{i.label}</span></button>
                     ))}
                 </nav>
-                <div className="p-8 border-t border-white/5 text-center text-[9px] font-black text-slate-600 uppercase tracking-widest">v7.8 High Speed Mode</div>
+                <div className="p-10 border-t border-white/5 text-center text-[9px] font-black text-slate-700 uppercase tracking-[0.3em]">Gestão de Presença 2026</div>
             </aside>
 
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                <header className="h-24 bg-white/80 backdrop-blur-xl border-b flex items-center px-8 justify-between md:hidden shadow-sm sticky top-0 z-30">
-                    <button onClick={()=>setSidebarOpen(true)} className="p-4 bg-slate-100 rounded-2xl text-slate-600 active:scale-95"><Database size={24}/></button>
-                    <span className="font-black text-blue-900 text-2xl tracking-tighter">PastoralPass</span>
+                <header className="h-28 bg-white/80 backdrop-blur-xl border-b flex items-center px-10 justify-between md:hidden shadow-sm sticky top-0 z-[90]">
+                    <button onClick={()=>setSidebarOpen(true)} className="p-4 bg-slate-100 rounded-2xl text-slate-600 active:scale-95 transition-all"><Database size={24}/></button>
+                    <span className="font-black text-slate-900 text-2xl tracking-tighter">PastoralPass</span>
                     <div className="w-14"></div>
                 </header>
                 
-                <div className="flex-1 overflow-y-auto p-8 md:p-14 pb-20 scroll-smooth">
+                <div className="flex-1 overflow-y-auto p-10 md:p-16 pb-32 scroll-smooth">
                     <div className="max-w-6xl mx-auto">
                         {activeTab === 'dashboard' && <Dashboard />}
                         {activeTab === 'students' && <StudentsList />}
