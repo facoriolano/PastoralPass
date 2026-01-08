@@ -63,7 +63,7 @@
       import ReactDOM from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
       import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, query, onSnapshot, orderBy, serverTimestamp } from 'firebase/firestore';
-      import { Home, Users, ClipboardList, Scan, X, CheckCircle, AlertTriangle, Plus, Search, ScanLine, Settings, Database, ArrowRight, Edit2, BookOpen, Church, History, Trash2, Filter, Calendar, TrendingUp, ChevronRight, UserPlus, Keyboard, Hash } from 'lucide-react';
+      import { Home, Users, ClipboardList, Scan, X, CheckCircle, AlertTriangle, Plus, Search, ScanLine, Settings, Database, ArrowRight, Edit2, BookOpen, Church, History, Trash2, Filter, Calendar, TrendingUp, ChevronRight, UserPlus, Keyboard, Hash, Sparkles } from 'lucide-react';
       import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
       const CONFIG_KEY = 'pastoral_config_v7';
@@ -143,7 +143,6 @@
         if (!db) return <div className="h-screen flex items-center justify-center font-bold text-blue-600">Conectando Nuvem...</div>;
 
         const StudentDetailModal = ({ studentInfo, onClose }) => {
-            // studentInfo contém { id, name, pastoral } mesmo que o aluno não exista mais na coleção "alunos"
             const history = attendance.filter(a => a.studentId === studentInfo.id);
             return (
                 <div className="fixed inset-0 bg-black/70 z-[300] flex items-end md:items-center justify-center backdrop-blur-md animate-in">
@@ -270,7 +269,6 @@
                         </div>
                     </div>
 
-                    {/* Central de Comando - Somente Aqui */}
                     <div className="bg-slate-900 p-8 rounded-[48px] shadow-2xl space-y-6">
                         <h3 className="text-white font-black text-xs uppercase tracking-[0.3em] opacity-40 text-center">Central de Chamadas</h3>
                         <div className="grid grid-cols-2 gap-4">
@@ -393,7 +391,29 @@
                     setError(null); if(navigator.vibrate) navigator.vibrate(100);
                 } catch (e) {
                     if (e.message === "ID_NAO_ENCONTRADO") {
-                        setAutoRegisterForm({ code, name: '', pastoral: PastoralType.CATEQUESE });
+                        // SMART PARSING DO QR CODE
+                        const match = code.match(/^(\d+)\s+(.*)$/);
+                        let suggestedId = code;
+                        let suggestedName = code;
+                        let suggestedPastoral = PastoralType.CATEQUESE;
+
+                        if (match) {
+                            suggestedId = match[1];
+                            suggestedName = match[2].trim();
+                        }
+
+                        // Detecção automática de pastoral por palavra-chave
+                        const upper = code.toUpperCase();
+                        if (upper.includes("CRISMA")) suggestedPastoral = PastoralType.CRISMA;
+                        else if (upper.includes("EUCARISTIA")) suggestedPastoral = PastoralType.EUCARISTIA;
+                        else if (upper.includes("JOVENS")) suggestedPastoral = PastoralType.JOVENS;
+
+                        setAutoRegisterForm({ 
+                            code: code, // Bruto para salvar como ID de scan
+                            displayId: suggestedId, 
+                            name: suggestedName, 
+                            pastoral: suggestedPastoral 
+                        });
                         if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
                     } else {
                         setError(e.message);
@@ -406,7 +426,12 @@
             const submitAutoRegister = async () => {
                 if (!autoRegisterForm.name) return;
                 try {
-                    const newStudentDoc = await addDoc(collection(db, 'alunos'), { name: autoRegisterForm.name, pastoral: autoRegisterForm.pastoral, qrCodeValue: autoRegisterForm.code, createdAt: serverTimestamp() });
+                    const newStudentDoc = await addDoc(collection(db, 'alunos'), { 
+                        name: autoRegisterForm.name, 
+                        pastoral: autoRegisterForm.pastoral, 
+                        qrCodeValue: autoRegisterForm.code, 
+                        createdAt: serverTimestamp() 
+                    });
                     await markAttendanceInternal(newStudentDoc.id, autoRegisterForm.name, autoRegisterForm.pastoral, mode);
                     setRecent(prev => [{ name: `Novo: ${autoRegisterForm.name}`, time: new Date().toLocaleTimeString(), success: true }, ...prev].slice(0, 5));
                     setFlash(true); setTimeout(() => setFlash(false), 600);
@@ -434,14 +459,18 @@
                                 <div className="text-center">
                                     <div className="bg-blue-600 text-white w-16 h-16 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-xl"><UserPlus size={32}/></div>
                                     <h3 className="font-black text-2xl text-slate-900 uppercase tracking-tighter">Vincular Crachá</h3>
-                                    <div className="flex items-center justify-center gap-2 mt-4 bg-slate-100 py-3 rounded-2xl border border-slate-200"><Hash size={24} className="text-blue-600"/><span className="text-blue-600 text-4xl font-black tracking-widest">{autoRegisterForm.code}</span></div>
-                                    <p className="text-slate-400 text-[10px] font-black uppercase mt-2 tracking-widest">Código Detectado</p>
+                                    
+                                    <div className="bg-blue-50 p-6 rounded-[32px] border border-blue-100 mt-6 relative overflow-hidden group">
+                                        <div className="absolute -top-4 -right-4 text-blue-100 opacity-50 group-hover:rotate-12 transition-transform"><Sparkles size={80}/></div>
+                                        <p className="text-blue-600 text-4xl font-black tracking-tighter break-words leading-tight uppercase">{autoRegisterForm.code}</p>
+                                        <p className="text-blue-400 text-[10px] font-black uppercase mt-3 tracking-widest flex items-center justify-center gap-2"><Hash size={12}/> Código Detectado</p>
+                                    </div>
                                 </div>
                                 <div className="space-y-5">
-                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Aluno</label><input autoFocus placeholder="Nome Completo" className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-bold shadow-inner" value={autoRegisterForm.name} onChange={e=>setAutoRegisterForm({...autoRegisterForm, name:e.target.value})}/></div>
-                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Pastoral</label><select className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 outline-none font-bold" value={autoRegisterForm.pastoral} onChange={e=>setAutoRegisterForm({...autoRegisterForm, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div>
+                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Aluno (Auto-Preenchido)</label><input autoFocus placeholder="Nome Completo" className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-bold shadow-inner" value={autoRegisterForm.name} onChange={e=>setAutoRegisterForm({...autoRegisterForm, name:e.target.value})}/></div>
+                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Pastoral (Detectada)</label><select className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 outline-none font-bold" value={autoRegisterForm.pastoral} onChange={e=>setAutoRegisterForm({...autoRegisterForm, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div>
                                 </div>
-                                <div className="flex gap-4 pt-4"><button onClick={()=>setAutoRegisterForm(null)} className="flex-1 py-5 font-black text-slate-400 text-xs tracking-widest">CANCELAR</button><button onClick={submitAutoRegister} className="flex-1 py-5 bg-blue-600 text-white rounded-[24px] font-black shadow-xl text-xs tracking-widest transition-all active:scale-95">SALVAR</button></div>
+                                <div className="flex gap-4 pt-4"><button onClick={()=>setAutoRegisterForm(null)} className="flex-1 py-5 font-black text-slate-400 text-xs tracking-widest">CANCELAR</button><button onClick={submitAutoRegister} className="flex-1 py-5 bg-blue-600 text-white rounded-[24px] font-black shadow-xl text-xs tracking-widest transition-all active:scale-95">SALVAR E REGISTRAR</button></div>
                             </div>
                         </div>
                     )}
