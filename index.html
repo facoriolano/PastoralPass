@@ -105,6 +105,12 @@
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         };
 
+        const getShortId = (val) => {
+            if (!val) return "";
+            const match = val.match(/^(\d+)/);
+            return match ? match[1] : val;
+        };
+
         useEffect(() => {
           const stored = localStorage.getItem(CONFIG_KEY);
           if (stored) {
@@ -362,7 +368,7 @@
                     <div className="grid gap-3">
                         {students.filter(s => s.name.toLowerCase().includes(search.toLowerCase())).map(s => (
                             <div key={s.id} className="custom-card p-6 flex justify-between items-center hover:bg-slate-50 transition-colors">
-                                <div><p className="font-black text-slate-800 uppercase tracking-tight">{s.name}</p><p className="text-[10px] font-black text-blue-600 uppercase mt-1 tracking-widest">{s.pastoral} <span className="text-slate-300 mx-2">•</span> Crachá: {s.qrCodeValue}</p></div>
+                                <div><p className="font-black text-slate-800 uppercase tracking-tight">{s.name}</p><p className="text-[10px] font-black text-blue-600 uppercase mt-1 tracking-widest">{s.pastoral} <span className="text-slate-300 mx-2">•</span> Crachá: {getShortId(s.qrCodeValue)}</p></div>
                                 <div className="flex gap-2"><button onClick={() => {setForm(s); setModal(true)}} className="text-slate-300 hover:text-blue-600 p-3 rounded-2xl hover:bg-blue-50 transition-all"><Edit2 size={20}/></button><button onClick={async () => { if(confirm(`Excluir ${s.name}?`)) await deleteDoc(doc(db, 'alunos', s.id)) }} className="text-slate-300 hover:text-red-500 p-3 rounded-2xl hover:bg-red-50 transition-all"><Trash2 size={20}/></button></div>
                             </div>
                         ))}
@@ -391,27 +397,34 @@
                     setError(null); if(navigator.vibrate) navigator.vibrate(100);
                 } catch (e) {
                     if (e.message === "ID_NAO_ENCONTRADO") {
-                        // SMART PARSING DO QR CODE
                         const match = code.match(/^(\d+)\s+(.*)$/);
                         let suggestedId = code;
-                        let suggestedName = code;
+                        let suggestedNameRaw = code;
                         let suggestedPastoral = PastoralType.CATEQUESE;
 
                         if (match) {
                             suggestedId = match[1];
-                            suggestedName = match[2].trim();
+                            suggestedNameRaw = match[2].trim();
                         }
 
-                        // Detecção automática de pastoral por palavra-chave
+                        // Identificar e Limpar Pastoral do Nome
+                        let cleanName = suggestedNameRaw;
+                        const keywords = ["CRISMA", "JUVENIL", "CATEQUESE", "INFANTIL", "EUCARISTIA", "JOVENS", "GRUPO"];
+                        keywords.forEach(k => {
+                           const regex = new RegExp(k, 'gi');
+                           cleanName = cleanName.replace(regex, '');
+                        });
+                        cleanName = cleanName.trim().replace(/\s\s+/g, ' ');
+
                         const upper = code.toUpperCase();
                         if (upper.includes("CRISMA")) suggestedPastoral = PastoralType.CRISMA;
                         else if (upper.includes("EUCARISTIA")) suggestedPastoral = PastoralType.EUCARISTIA;
                         else if (upper.includes("JOVENS")) suggestedPastoral = PastoralType.JOVENS;
 
                         setAutoRegisterForm({ 
-                            code: code, // Bruto para salvar como ID de scan
+                            code: code, 
                             displayId: suggestedId, 
-                            name: suggestedName, 
+                            name: cleanName, 
                             pastoral: suggestedPastoral 
                         });
                         if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -462,12 +475,12 @@
                                     
                                     <div className="bg-blue-50 p-6 rounded-[32px] border border-blue-100 mt-6 relative overflow-hidden group">
                                         <div className="absolute -top-4 -right-4 text-blue-100 opacity-50 group-hover:rotate-12 transition-transform"><Sparkles size={80}/></div>
-                                        <p className="text-blue-600 text-4xl font-black tracking-tighter break-words leading-tight uppercase">{autoRegisterForm.code}</p>
-                                        <p className="text-blue-400 text-[10px] font-black uppercase mt-3 tracking-widest flex items-center justify-center gap-2"><Hash size={12}/> Código Detectado</p>
+                                        <p className="text-blue-600 text-4xl font-black tracking-tighter break-words leading-tight uppercase">{autoRegisterForm.displayId}</p>
+                                        <p className="text-blue-400 text-[10px] font-black uppercase mt-3 tracking-widest flex items-center justify-center gap-2"><Hash size={12}/> Número Detectado</p>
                                     </div>
                                 </div>
                                 <div className="space-y-5">
-                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Aluno (Auto-Preenchido)</label><input autoFocus placeholder="Nome Completo" className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-bold shadow-inner" value={autoRegisterForm.name} onChange={e=>setAutoRegisterForm({...autoRegisterForm, name:e.target.value})}/></div>
+                                    <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nome do Aluno (Sugestão)</label><input autoFocus placeholder="Nome Completo" className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 focus:bg-white focus:border-blue-500 outline-none font-bold shadow-inner" value={autoRegisterForm.name} onChange={e=>setAutoRegisterForm({...autoRegisterForm, name:e.target.value})}/></div>
                                     <div><label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Pastoral (Detectada)</label><select className="w-full p-5 border-2 border-slate-100 rounded-[24px] bg-slate-50 outline-none font-bold" value={autoRegisterForm.pastoral} onChange={e=>setAutoRegisterForm({...autoRegisterForm, pastoral:e.target.value})}>{Object.values(PastoralType).map(p=><option key={p} value={p}>{p}</option>)}</select></div>
                                 </div>
                                 <div className="flex gap-4 pt-4"><button onClick={()=>setAutoRegisterForm(null)} className="flex-1 py-5 font-black text-slate-400 text-xs tracking-widest">CANCELAR</button><button onClick={submitAutoRegister} className="flex-1 py-5 bg-blue-600 text-white rounded-[24px] font-black shadow-xl text-xs tracking-widest transition-all active:scale-95">SALVAR E REGISTRAR</button></div>
